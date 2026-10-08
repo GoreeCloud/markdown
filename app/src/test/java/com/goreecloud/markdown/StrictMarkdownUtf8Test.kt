@@ -22,4 +22,25 @@ class StrictMarkdownUtf8Test {
             StrictMarkdownUtf8.encode("a".repeat(MAX_DOCUMENT_BYTES + 1))
         }
     }
+
+    @Test fun malformedUtf16IsRejectedBeforeSaving() {
+        assertThrows(CharacterCodingException::class.java) {
+            StrictMarkdownUtf8.encode("bad\uD800")
+        }
+        assertThrows(CharacterCodingException::class.java) {
+            StrictMarkdownUtf8.encode("\uDC00")
+        }
+    }
+
+    @Test fun supplementaryUnicodeRoundTrips() {
+        val content = "Emoji 😀✨"
+        assertEquals(content, StrictMarkdownUtf8.decode(StrictMarkdownUtf8.encode(content)))
+    }
+
+    @Test fun exactByteLimitAcceptedAndMultibyteOverflowRejected() {
+        assertEquals(MAX_DOCUMENT_BYTES, StrictMarkdownUtf8.encode("x".repeat(MAX_DOCUMENT_BYTES)).size)
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictMarkdownUtf8.encode("é".repeat(MAX_DOCUMENT_BYTES / 2 + 1))
+        }
+    }
 }
