@@ -275,44 +275,64 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                     }
                 }
                 if (showFind) {
+                    OutlinedTextField(
+                        value = findQuery,
+                        onValueChange = {
+                            findQuery = it
+                            nextFindOffset = 0
+                            foundStart = null
+                            findAttempted = false
+                        },
+                        label = { Text("Find in document") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        OutlinedTextField(
-                            value = findQuery,
-                            onValueChange = {
-                                findQuery = it
-                                nextFindOffset = 0
-                                foundStart = null
-                                findAttempted = false
-                            },
-                            label = { Text("Find in document") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                        )
                         TextButton(
                             enabled = !state.busy && findQuery.isNotEmpty(),
                             onClick = {
-                                val start = MarkdownSearch.findNext(
+                                val index = MarkdownSearch.findPrevious(
+                                    state.text, findQuery, foundStart ?: editorField.selection.start,
+                                )
+                                foundStart = index
+                                findAttempted = true
+                                if (index != null) {
+                                    editorField = editorField.copy(
+                                        selection = TextRange(index, index + findQuery.length)
+                                    )
+                                    nextFindOffset = index + findQuery.length
+                                    showPreview = false
+                                }
+                            },
+                        ) { Text("Previous") }
+                        TextButton(
+                            enabled = !state.busy && findQuery.isNotEmpty(),
+                            onClick = {
+                                val index = MarkdownSearch.findNext(
                                     state.text, findQuery, nextFindOffset
                                 )
-                                foundStart = start
+                                foundStart = index
                                 findAttempted = true
-                                if (start != null) {
+                                if (index != null) {
                                     editorField = editorField.copy(
-                                        selection = TextRange(start, start + findQuery.length)
+                                        selection = TextRange(index, index + findQuery.length)
                                     )
-                                    nextFindOffset = start + findQuery.length
+                                    nextFindOffset = index + findQuery.length
                                     showPreview = false
                                 }
                             },
                         ) { Text("Next") }
                     }
                     if (findAttempted) {
+                        val matchCount = remember(state.text, findQuery) {
+                            MarkdownSearch.countMatches(state.text, findQuery)
+                        }
                         Text(
                             foundStart?.let { index ->
-                                "Match on line ${1 + state.text.take(index).count { it == '\n' }}"
+                                "Match on line ${1 + state.text.take(index).count { it == '\n' }} • ${matchCount} matches"
                             } ?: "No matches",
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
