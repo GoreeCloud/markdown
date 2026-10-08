@@ -25,6 +25,13 @@ class MarkdownOutlineTest {
         assertTrue(MarkdownOutline.headings(source).isEmpty())
     }
 
+    @Test fun literalHashSuffixesArePreserved() {
+        val source = "# C#\\n## Function##\\n### Heading ###\\n# ###\\n"
+        val headings = MarkdownOutline.headings(source)
+        assertEquals(listOf("C#", "Function##", "Heading"), headings.map { it.title })
+        assertEquals(listOf(1, 2, 3), headings.map { it.level })
+    }
+
     @Test fun emptyInputHasNoHeadings() {
         assertTrue(MarkdownOutline.headings("").isEmpty())
     }
