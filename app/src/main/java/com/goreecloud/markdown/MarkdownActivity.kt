@@ -120,7 +120,13 @@ internal class EditorViewModel : ViewModel() {
             try {
                 val name = withContext(Dispatchers.IO) {
                     val storage = DocumentStorage(appContext)
-                    storage.save(destination, snapshot.text)
+                    storage.save(
+                        destination,
+                        snapshot.text,
+                        expectedPersistedText = snapshot.persistedText.takeIf {
+                            destination == snapshot.uri
+                        },
+                    )
                     storage.displayName(destination)
                 }
                 mutable.update {

@@ -63,13 +63,26 @@ internal class DocumentStorage(private val context: Context) {
      * write and byte-for-byte readback both succeed. The draft is intentionally
      * kept on failure for possible recovery on a subsequent Open.
      */
-    fun save(uri: Uri, text: String) {
+    fun save(uri: Uri, text: String, expectedPersistedText: String? = null) {
         val contents = StrictMarkdownUtf8.encode(text)
         val rescue = recoveryFile(uri)
         rescue.parentFile?.mkdirs()
-        FileOutputStream(rescue).use {
+        // Stage on the same private filesystem before replacing a previous rescue
+        // draft. A crash during staging must not truncate the older recovery copy.
+        val staging = File(rescue.parentFile, "${rescue.name}.pending")
+        FileOutputStream(staging).use {
             it.write(contents)
             it.fd.sync()
+        }
+        if (!staging.renameTo(rescue)) {
+            throw IOException("Unable to prepare a private recovery draft; the provider was not written.")
+        }
+
+        // Detect edits made by another application since the document was opened
+        // or last saved. The SAF provider may still race between this read and the
+        // subsequent write; this is conflict detection, not atomic replacement.
+        if (expectedPersistedText != null) {
+            DocumentConflictGuard.verify(expectedPersistedText, read(uri))
         }
         val destination = context.contentResolver.openOutputStream(uri, "wt")
             ?: throw IOException("Cannot write the selected document.")
@@ -110,5 +123,17 @@ internal object StrictMarkdownUtf8 {
             .onUnmappableCharacter(CodingErrorAction.REPORT)
             .decode(ByteBuffer.wrap(bytes))
             .toString()
+    }
+}
+
+/** Pure pre-write comparison to prevent silent overwrites of observed changes. */
+internal object DocumentConflictGuard {
+    fun verify(expectedPersistedText: String, currentProviderText: String) {
+        if (expectedPersistedText != currentProviderText) {
+            throw IOException(
+                "The document changed outside GoreeCloud Markdown. " +
+                    "It was not overwritten; use Save as to preserve both versions."
+            )
+        }
     }
 }

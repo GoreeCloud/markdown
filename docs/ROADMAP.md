@@ -8,12 +8,13 @@ The repository started as a README-only GitHub repository on 2026-10-08. These a
 - SAF open/create, source editing, native Markdown preview, explicit Save/Save As.
 - Dirty-document confirmation for New/Open/back; strict UTF-8 and bounded development-size files.
 - Private recovery draft before attempting a provider save, and readback verification after the write.
+- A staged private recovery-draft replacement plus a pre-write external-change comparison for saves back to the opened URI (source-level implementation; provider/device verification pending).
 - Unit checks for text encoding and safety limit.
 - GitHub Actions build/test lane.
 
 ## Next workstreams (pending)
 
-1. **Data integrity:** design tested Save conflict handling, URI revocation and read-only providers, persisted document grants across restart, provider truncation behavior, recovery-draft retention and cleanup, app process death, and background/editor state preservation. SAF does not guarantee atomic replace.
+1. **Data integrity:** verify pre-write Save conflict detection against representative providers, including failures and modification races; test URI revocation and read-only providers, persisted document grants across restart, provider truncation behavior, recovery-draft retention and cleanup, app process death, and background/editor state preservation. SAF does not guarantee atomic replace.
 2. **Editor:** navigation to recent user-approved URIs, search/replace, selection formatting, undo/redo, headings outline, large-document performance, cursor continuity, keyboard shortcuts, dual pane tablet layout.
 3. **Preview:** CommonMark compliance fixtures, security review for links/HTML/images, table/footnote/task-list extensions after policy review, performance testing and accessibility semantics.
 4. **Glaze:** use verified approved native tokens/mappings from the authoritative GoreeCloud/glaze repository, then verify dark/light themes, dynamic contrast, reduced motion, TalkBack, font scaling, and keyboard/foldable layout.
