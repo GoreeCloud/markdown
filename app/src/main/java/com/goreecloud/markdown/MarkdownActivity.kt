@@ -107,13 +107,13 @@ internal class EditorViewModel : ViewModel() {
                 val result = withContext(Dispatchers.IO) {
                     val storage = DocumentStorage(appContext)
                     val text = storage.read(uri)
-                    Triple(storage.displayName(uri), text, runCatching { storage.recoveryDraft(uri) })
+                    Triple(storage.displayName(uri), text, RecoveryReader.readSafely { storage.recoveryDraft(uri) })
                 }
                 mutable.value = EditorState(
                     uri = uri, fileName = result.first,
                     text = result.second, persistedText = result.second,
-                    recoveryDraft = result.third.getOrNull(),
-                    notice = if (result.third.isFailure)
+                    recoveryDraft = result.third.draft,
+                    notice = if (result.third.readFailed)
                         "Document opened. A private recovery draft could not be read; it has not been deleted."
                     else null,
                 )
