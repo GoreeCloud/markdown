@@ -18,10 +18,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -170,6 +173,8 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
     val state by vm.state.collectAsState()
     var showPreview by remember { mutableStateOf(false) }
     var showFind by remember { mutableStateOf(false) }
+    var showOutline by remember { mutableStateOf(false) }
+    var pendingHeadingFocus by remember { mutableStateOf(false) }
     var findQuery by remember { mutableStateOf("") }
     var nextFindOffset by remember { mutableIntStateOf(0) }
     var foundStart by remember { mutableStateOf<Int?>(null) }
@@ -192,6 +197,12 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
     }
     LaunchedEffect(foundStart, showPreview) {
         if (foundStart != null && !showPreview) editorFocus.requestFocus()
+    }
+    LaunchedEffect(pendingHeadingFocus, showPreview) {
+        if (pendingHeadingFocus && !showPreview) {
+            editorFocus.requestFocus()
+            pendingHeadingFocus = false
+        }
     }
 
     val openDocument = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -259,6 +270,9 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                         foundStart = null
                         findAttempted = false
                     }) { Text(if (showFind) "Close find" else "Find") }
+                    TextButton(onClick = { showOutline = true }, enabled = !state.busy) {
+                        Text("Outline")
+                    }
                 }
                 if (showFind) {
                     Row(
@@ -351,6 +365,39 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                     }
                 }
             }
+        }
+        if (showOutline) {
+            val headings = remember(state.text) { MarkdownOutline.headings(state.text) }
+            AlertDialog(
+                onDismissRequest = { showOutline = false },
+                title = { Text("Document outline") },
+                text = {
+                    if (headings.isEmpty()) {
+                        Text("No Markdown headings found.")
+                    } else {
+                        LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
+                            items(headings, key = { it.start }) { heading ->
+                                TextButton(
+                                    onClick = {
+                                        editorField = editorField.copy(
+                                            selection = TextRange(heading.start, heading.endExclusive)
+                                        )
+                                        showPreview = false
+                                        showOutline = false
+                                        pendingHeadingFocus = true
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text("Level ${heading.level}: ${heading.title}")
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showOutline = false }) { Text("Close") }
+                },
+            )
         }
         if (pendingDiscard != null) {
             AlertDialog(
