@@ -47,6 +47,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -104,12 +107,15 @@ internal class EditorViewModel : ViewModel() {
                 val result = withContext(Dispatchers.IO) {
                     val storage = DocumentStorage(appContext)
                     val text = storage.read(uri)
-                    Triple(storage.displayName(uri), text, storage.recoveryDraft(uri))
+                    Triple(storage.displayName(uri), text, runCatching { storage.recoveryDraft(uri) })
                 }
                 mutable.value = EditorState(
                     uri = uri, fileName = result.first,
                     text = result.second, persistedText = result.second,
-                    recoveryDraft = result.third,
+                    recoveryDraft = result.third.getOrNull(),
+                    notice = if (result.third.isFailure)
+                        "Document opened. A private recovery draft could not be read; it has not been deleted."
+                    else null,
                 )
             } catch (error: Exception) {
                 mutable.update { it.copy(busy = false, notice = "Open failed: " + (error.message ?: "unknown error")) }
@@ -294,12 +300,14 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                                 "Match on line ${1 + state.text.take(index).count { it == '\n' }}"
                             } ?: "No matches",
                             style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                         )
                     }
                 }
                 state.notice?.let { notice ->
                     Text(notice, style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary)
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                     TextButton(onClick = vm::dismissNotice) { Text("Dismiss message") }
                 }
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
