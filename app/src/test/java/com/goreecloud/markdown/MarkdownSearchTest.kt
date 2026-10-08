@@ -34,6 +34,14 @@ class MarkdownSearchTest {
     }
 
     @Test
+    fun forwardBackwardAndCountAgreeOnOverlaps() {
+        val document = "banana"
+        assertEquals(1, MarkdownSearch.findNext(document, "ana", 2))
+        assertEquals(1, MarkdownSearch.findPrevious(document, "ana", 0))
+        assertEquals(1, MarkdownSearch.countMatches(document, "ana"))
+    }
+
+    @Test
     fun emptyQueryOrMissingMatchReturnsNull() {
         assertNull(MarkdownSearch.findNext("Alpha", ""))
         assertNull(MarkdownSearch.findNext("Alpha", "omega"))
