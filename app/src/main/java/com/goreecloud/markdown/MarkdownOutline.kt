@@ -39,7 +39,7 @@ internal object MarkdownOutline {
                         val rawTitle = body.drop(marks)
                         // CommonMark only removes closing # marks preceded by
                         // whitespace. A word ending in # is legitimate text.
-                        val title = rawTitle.replace(Regex("[ \\t]+#+$"), "").trimEnd()
+                        val title = rawTitle.replace(Regex("[ \\t]+#+$"), "").trim()
                         if (title.isNotEmpty()) {
                             result.add(MarkdownHeading(marks, title, cursor, cursor + line.length))
                         }
