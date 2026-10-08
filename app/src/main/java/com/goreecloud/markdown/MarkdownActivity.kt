@@ -124,21 +124,28 @@ internal class EditorViewModel : ViewModel() {
         mutable.update { it.copy(busy = true, notice = null) }
         viewModelScope.launch {
             try {
-                val name = withContext(Dispatchers.IO) {
+                val (name, outcome) = withContext(Dispatchers.IO) {
                     val storage = DocumentStorage(appContext)
-                    storage.save(
+                    val result = storage.save(
                         destination,
                         snapshot.text,
                         expectedPersistedText = snapshot.persistedText.takeIf {
                             destination == snapshot.uri
                         },
                     )
-                    storage.displayName(destination)
+                    storage.displayName(destination) to result
                 }
                 mutable.update {
-                    it.copy(uri = destination, fileName = name,
-                        persistedText = snapshot.text, busy = false,
-                        notice = if (it.text == snapshot.text) "Save verified." else "Saved earlier edit; newer changes remain.")
+                    it.copy(
+                        uri = destination,
+                        fileName = name,
+                        persistedText = snapshot.text,
+                        busy = false,
+                        notice = SaveNotice.message(
+                            newerEditsRemain = it.text != snapshot.text,
+                            recoveryCleanupPending = outcome.recoveryCleanupPending,
+                        ),
+                    )
                 }
             } catch (error: Exception) {
                 mutable.update {
