@@ -19,6 +19,7 @@ Before executing, record exact source SHA, CI run URL, Android API level, device
 | SAF-10 | Relaunch and choose Restore or Keep provider version | User choice honored, no automatic overwrite | Not run |
 | SAF-11 | Repeat core flows on a distinct SAF/cloud provider | Provider-specific behavior recorded, no atomicity claim | Not run |
 | SAF-12 | External modification in check-to-write gap | Documented residual race; no race-free claim | Not run |
+| SAF-13 | Private recovery draft unreadable but provider file valid | Open selected file, warn and retain damaged draft without deletion | Not run |
 
 ## User experience and accessibility
 
@@ -32,6 +33,8 @@ Before executing, record exact source SHA, CI run URL, Android API level, device
 | UI-06 | TalkBack and keyboard-only control navigation | Accurate labels, order and feedback | Not run |
 | UI-07 | Preview Markdown fixtures and malicious links | Fidelity without unintended network access | Not run |
 | UI-08 | Background/process death during unsaved edit | Observe actual behavior, no invented recovery guarantee | Not run |
+| UI-09 | Navigate long document with heading outline | Select correct heading and place editor focus, including with keyboard/TalkBack | Not run |
+| UI-10 | Search/save/outline messages with accessibility service | Polite announcements and understandable status without stealing focus | Not run |
 
 ## Required evidence before release
 
