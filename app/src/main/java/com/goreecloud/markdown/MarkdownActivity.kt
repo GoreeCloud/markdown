@@ -46,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -313,6 +314,9 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     if (showPreview) {
                         val markwon = remember(context) { Markwon.create(context) }
+                        // Preview is an Android TextView under a Compose theme; explicitly
+                        // adopt the active foreground color for readable dark-mode text.
+                        val previewTextColor = MaterialTheme.colorScheme.onSurface.toArgb()
                         Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                             AndroidView(
                                 factory = { TextView(it).apply {
@@ -320,7 +324,10 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                                     textSize = 16f
                                     setPadding(8, 12, 8, 12)
                                 } },
-                                update = { view -> markwon.setMarkdown(view, state.text) },
+                                update = { view ->
+                                    view.setTextColor(previewTextColor)
+                                    markwon.setMarkdown(view, state.text)
+                                },
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
