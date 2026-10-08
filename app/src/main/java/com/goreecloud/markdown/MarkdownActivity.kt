@@ -35,16 +35,22 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.ViewModel
@@ -149,7 +155,30 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
     val context = LocalContext.current
     val state by vm.state.collectAsState()
     var showPreview by remember { mutableStateOf(false) }
+    var showFind by remember { mutableStateOf(false) }
+    var findQuery by remember { mutableStateOf("") }
+    var nextFindOffset by remember { mutableIntStateOf(0) }
+    var foundStart by remember { mutableStateOf<Int?>(null) }
+    var findAttempted by remember { mutableStateOf(false) }
+    var editorField by remember { mutableStateOf(TextFieldValue(state.text)) }
+    val editorFocus = remember { FocusRequester() }
     var pendingDiscard by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    // Preserve IME composition and cursor selection during ordinary typing.
+    // Update the field only when a new document or a recovered draft replaces
+    // its text outside the text input callback.
+    LaunchedEffect(state.text) {
+        if (editorField.text != state.text) {
+            editorField = editorField.copy(
+                text = state.text,
+                selection = TextRange(editorField.selection.end.coerceIn(0, state.text.length)),
+                composition = null,
+            )
+        }
+    }
+    LaunchedEffect(foundStart, showPreview) {
+        if (foundStart != null && !showPreview) editorFocus.requestFocus()
+    }
 
     val openDocument = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -211,6 +240,55 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(selected = !showPreview, onClick = { showPreview = false }, label = { Text("Edit") })
                     FilterChip(selected = showPreview, onClick = { showPreview = true }, label = { Text("Preview") })
+                    TextButton(onClick = {
+                        showFind = !showFind
+                        foundStart = null
+                        findAttempted = false
+                    }) { Text(if (showFind) "Close find" else "Find") }
+                }
+                if (showFind) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedTextField(
+                            value = findQuery,
+                            onValueChange = {
+                                findQuery = it
+                                nextFindOffset = 0
+                                foundStart = null
+                                findAttempted = false
+                            },
+                            label = { Text("Find in document") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(
+                            enabled = !state.busy && findQuery.isNotEmpty(),
+                            onClick = {
+                                val start = MarkdownSearch.findNext(
+                                    state.text, findQuery, nextFindOffset
+                                )
+                                foundStart = start
+                                findAttempted = true
+                                if (start != null) {
+                                    editorField = editorField.copy(
+                                        selection = TextRange(start, start + findQuery.length)
+                                    )
+                                    nextFindOffset = start + findQuery.length
+                                    showPreview = false
+                                }
+                            },
+                        ) { Text("Next") }
+                    }
+                    if (findAttempted) {
+                        Text(
+                            foundStart?.let { index ->
+                                "Match on line ${1 + state.text.take(index).count { it == '\n' }}"
+                            } ?: "No matches",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                 }
                 state.notice?.let { notice ->
                     Text(notice, style = MaterialTheme.typography.bodySmall,
@@ -233,10 +311,18 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                         }
                     } else {
                         OutlinedTextField(
-                            value = state.text,
-                            onValueChange = vm::edit,
+                            value = editorField,
+                            onValueChange = { next ->
+                                editorField = next
+                                if (next.text != state.text) {
+                                    foundStart = null
+                                    findAttempted = false
+                                    nextFindOffset = 0
+                                    vm.edit(next.text)
+                                }
+                            },
                             label = { Text("Markdown source") },
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize().focusRequester(editorFocus),
                             textStyle = TextStyle(fontFamily = FontFamily.Monospace),
                             enabled = !state.busy,
                         )
