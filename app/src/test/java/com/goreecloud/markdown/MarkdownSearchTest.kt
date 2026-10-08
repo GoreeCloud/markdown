@@ -16,6 +16,24 @@ class MarkdownSearchTest {
     }
 
     @Test
+    fun previousWrapsAndMatchesCaseInsensitively() {
+        assertEquals(11, MarkdownSearch.findPrevious("Alpha beta ALPHA", "alpha", 0))
+        assertEquals(0, MarkdownSearch.findPrevious("Alpha beta ALPHA", "alpha", 11))
+    }
+
+    @Test
+    fun previousDoesNotMatchEmptyQuery() {
+        assertNull(MarkdownSearch.findPrevious("Alpha", ""))
+        assertNull(MarkdownSearch.findPrevious("Alpha", "unknown"))
+    }
+
+    @Test
+    fun countsNonOverlappingMatches() {
+        assertEquals(2, MarkdownSearch.countMatches("banana BANANA", "ana"))
+        assertEquals(0, MarkdownSearch.countMatches("", "ana"))
+    }
+
+    @Test
     fun emptyQueryOrMissingMatchReturnsNull() {
         assertNull(MarkdownSearch.findNext("Alpha", ""))
         assertNull(MarkdownSearch.findNext("Alpha", "omega"))
