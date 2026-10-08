@@ -111,9 +111,13 @@ internal const val MAX_DOCUMENT_BYTES = 2 * 1024 * 1024
 
 internal object StrictMarkdownUtf8 {
     fun encode(text: String): ByteArray {
-        val encoded = text.toByteArray(StandardCharsets.UTF_8)
-        require(encoded.size <= MAX_DOCUMENT_BYTES) { "Document exceeds the 2 MiB development safety limit." }
-        return encoded
+        require(text.length <= MAX_DOCUMENT_BYTES) { "Document exceeds the 2 MiB development safety limit." }
+        val buffer = StandardCharsets.UTF_8.newEncoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+            .encode(java.nio.CharBuffer.wrap(text))
+        require(buffer.remaining() <= MAX_DOCUMENT_BYTES) { "Document exceeds the 2 MiB development safety limit." }
+        return ByteArray(buffer.remaining()).also { buffer.get(it) }
     }
 
     fun decode(bytes: ByteArray): String {
