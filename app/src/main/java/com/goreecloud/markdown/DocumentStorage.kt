@@ -10,13 +10,20 @@ import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 
 /**
  * Uses only an explicitly user-selected document URI.
  * External document providers may not offer atomic replace semantics.
  */
-internal class DocumentStorage(private val context: Context) {
+internal data class DocumentSaveResult(val recoveryCleanupPending: Boolean)
+
+internal class DocumentStorage(
+    private val context: Context,
+    private val deleteRecoveryDraft: (File) -> Boolean = { it.delete() },
+) {
     fun read(uri: Uri): String {
         val source = context.contentResolver.openInputStream(uri)
             ?: throw IOException("Cannot open the selected document.")
@@ -53,9 +60,8 @@ internal class DocumentStorage(private val context: Context) {
     fun recoveryDraft(uri: Uri): String? {
         val file = recoveryFile(uri)
         if (!file.isFile) return null
-        return StrictMarkdownUtf8.decode(file.readBytes().also {
-            if (it.size > MAX_DOCUMENT_BYTES) throw IOException("Recovery draft exceeds the safety limit.")
-        })
+        if (file.length() > MAX_DOCUMENT_BYTES) throw IOException("Recovery draft exceeds the safety limit.")
+        return StrictMarkdownUtf8.decode(file.readBytes())
     }
 
     /**
@@ -63,24 +69,31 @@ internal class DocumentStorage(private val context: Context) {
      * write and byte-for-byte readback both succeed. The draft is intentionally
      * kept on failure for possible recovery on a subsequent Open.
      */
-    fun save(uri: Uri, text: String, expectedPersistedText: String? = null) {
+    fun save(uri: Uri, text: String, expectedPersistedText: String? = null): DocumentSaveResult {
         val contents = StrictMarkdownUtf8.encode(text)
         val rescue = recoveryFile(uri)
-        rescue.parentFile?.mkdirs()
-        // Stage on the same private filesystem before replacing a previous rescue
-        // draft. A crash during staging must not truncate the older recovery copy.
-        val staging = File(rescue.parentFile, "${rescue.name}.pending")
-        FileOutputStream(staging).use {
-            it.write(contents)
-            it.fd.sync()
+        val directory = rescue.parentFile ?: throw IOException("Recovery directory unavailable.")
+        if (!directory.isDirectory && !directory.mkdirs()) {
+            throw IOException("Cannot prepare private recovery directory; provider not written.")
         }
-        if (!staging.renameTo(rescue)) {
-            throw IOException("Unable to prepare a private recovery draft; the provider was not written.")
+        // Write, fsync and atomically replace app-private recovery bytes before SAF write.
+        // Fail closed if the filesystem cannot provide this guarantee.
+        val staging = File(directory, "${rescue.name}.pending")
+        try {
+            FileOutputStream(staging).use {
+                it.write(contents)
+                it.fd.sync()
+            }
+            Files.move(
+                staging.toPath(), rescue.toPath(),
+                StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING,
+            )
+        } finally {
+            staging.delete()
         }
 
-        // Detect edits made by another application since the document was opened
-        // or last saved. The SAF provider may still race between this read and the
-        // subsequent write; this is conflict detection, not atomic replacement.
+        // SAF document providers do not support atomic compare-and-replace.
+        // This check blocks observed conflicts, but not racing external changes.
         if (expectedPersistedText != null) {
             DocumentConflictGuard.verify(expectedPersistedText, read(uri))
         }
@@ -91,12 +104,15 @@ internal class DocumentStorage(private val context: Context) {
             it.flush()
         }
         if (read(uri) != text) {
-            throw IOException("The document provider did not return the saved content; draft retained.")
+            throw IOException("Provider readback mismatched; private recovery draft retained.")
         }
-        if (!rescue.delete()) {
-            // The provider copy is verified, but a redundant private draft remains.
-            throw IOException("Saved document verified, but private recovery cleanup failed.")
+        // Provider save already verified. Cleanup failure is a warning, not a save failure.
+        val cleanupPending = try {
+            !deleteRecoveryDraft(rescue)
+        } catch (_: Exception) {
+            true
         }
+        return DocumentSaveResult(recoveryCleanupPending = cleanupPending)
     }
 
     private fun recoveryFile(uri: Uri): File {
