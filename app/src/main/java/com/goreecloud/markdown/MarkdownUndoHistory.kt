@@ -1,6 +1,7 @@
 package com.goreecloud.markdown
 
 import java.util.ArrayDeque
+import java.security.MessageDigest
 
 /**
  * Session-only, text-based undo/redo. Stores changed spans, not full documents.
@@ -15,9 +16,9 @@ internal class MarkdownUndoHistory(
         val removed: String,
         val inserted: String,
         val beforeLength: Int,
-        val beforeHash: Int,
+        val beforeHash: ByteArray,
         val afterLength: Int,
-        val afterHash: Int,
+        val afterHash: ByteArray,
     ) {
         val cost get() = removed.length + inserted.length
     }
@@ -55,9 +56,9 @@ internal class MarkdownUndoHistory(
             removed = before.substring(prefix, before.length - suffix),
             inserted = after.substring(prefix, after.length - suffix),
             beforeLength = before.length,
-            beforeHash = before.hashCode(),
+            beforeHash = fingerprint(before),
             afterLength = after.length,
-            afterHash = after.hashCode(),
+            afterHash = fingerprint(after),
         )
         if (maxSteps <= 0 || change.cost > maxStoredChars) {
             reset()
@@ -92,18 +93,28 @@ internal class MarkdownUndoHistory(
         return restored
     }
 
+    /** Collision-resistant fingerprint of exact UTF-16 code units, including surrogate pairs. */
+    private fun fingerprint(text: String): ByteArray {
+        val digest = MessageDigest.getInstance("SHA-256")
+        for (unit in text) {
+            digest.update((unit.code and 0xff).toByte())
+            digest.update((unit.code ushr 8).toByte())
+        }
+        return digest.digest()
+    }
+
     private fun applyChange(current: String, change: Change, reverse: Boolean): String? {
         val expectedLength = if (reverse) change.afterLength else change.beforeLength
         val expectedHash = if (reverse) change.afterHash else change.beforeHash
         val expected = if (reverse) change.inserted else change.removed
         val replacement = if (reverse) change.removed else change.inserted
         val offset = change.offset
-        if (current.length != expectedLength || current.hashCode() != expectedHash ||
+        if (current.length != expectedLength || !fingerprint(current).contentEquals(expectedHash) ||
             offset < 0 || offset > current.length - expected.length ||
             !current.regionMatches(offset, expected, 0, expected.length)) return null
         val result = current.replaceRange(offset, offset + expected.length, replacement)
         val resultLength = if (reverse) change.beforeLength else change.afterLength
         val resultHash = if (reverse) change.beforeHash else change.afterHash
-        return result.takeIf { it.length == resultLength && it.hashCode() == resultHash }
+        return result.takeIf { it.length == resultLength && fingerprint(it).contentEquals(resultHash) }
     }
 }
