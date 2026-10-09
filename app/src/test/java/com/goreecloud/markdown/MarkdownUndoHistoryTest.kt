@@ -71,9 +71,9 @@ class MarkdownUndoHistoryTest {
 
     @Test fun oversizedChangeCannotCreateUnboundedHistory() {
         val history = MarkdownUndoHistory(maxStoredChars = 4)
-        history.record("one", "two")
+        history.record("a", "b")
         assertTrue(history.canUndo)
-        history.record("two", "a very long document")
+        history.record("b", "a very long document")
         assertFalse(history.canUndo)
     }
 
