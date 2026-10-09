@@ -199,6 +199,13 @@ internal class EditorViewModel : ViewModel() {
     }
 }
 
+private data class MarkdownReplaceAllRequest(
+    val snapshot: String,
+    val query: String,
+    val replacement: String,
+    val matches: Int,
+)
+
 @Composable
 private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
     val context = LocalContext.current
@@ -212,8 +219,13 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
     var nextFindOffset by remember { mutableIntStateOf(0) }
     var foundStart by remember { mutableStateOf<Int?>(null) }
     var findAttempted by remember { mutableStateOf(false) }
+    var pendingReplaceAll by remember { mutableStateOf<MarkdownReplaceAllRequest?>(null) }
     var editorField by remember { mutableStateOf(TextFieldValue(state.text)) }
     val editorFocus = remember { FocusRequester() }
+    val matchCount = remember(state.text, findQuery) {
+        MarkdownSearch.countMatches(state.text, findQuery)
+    }
+    val documentStats = remember(state.text) { MarkdownDocumentStats.from(state.text) }
     var pendingDiscard by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     // Preserve IME composition and cursor selection during ordinary typing.
@@ -278,6 +290,12 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                 Text("Markdown", style = MaterialTheme.typography.headlineMedium)
                 Text(state.fileName + if (state.dirty) " • Unsaved changes" else "",
                     style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    documentStats.lines.toString() + " lines • " +
+                        documentStats.words + " words • " +
+                        documentStats.characters + " characters",
+                    style = MaterialTheme.typography.bodySmall,
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -436,10 +454,18 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                             }
                         },
                     ) { Text("Replace selected") }
+                    TextButton(
+                        enabled = !state.busy && findQuery.isNotEmpty() && matchCount > 0,
+                        onClick = {
+                            pendingReplaceAll = MarkdownReplaceAllRequest(
+                                snapshot = state.text,
+                                query = findQuery,
+                                replacement = replaceWith,
+                                matches = matchCount,
+                            )
+                        },
+                    ) { Text("Replace all…") }
                     if (findAttempted) {
-                        val matchCount = remember(state.text, findQuery) {
-                            MarkdownSearch.countMatches(state.text, findQuery)
-                        }
                         Text(
                             foundStart?.let { index ->
                                 "Match on line ${1 + state.text.take(index).count { it == '\n' }} • ${matchCount} matches"
@@ -526,6 +552,53 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                 },
                 confirmButton = {
                     TextButton(onClick = { showOutline = false }) { Text("Close") }
+                },
+            )
+        }
+        pendingReplaceAll?.let { request ->
+            AlertDialog(
+                onDismissRequest = { pendingReplaceAll = null },
+                title = { Text("Replace all matches?") },
+                text = {
+                    Text(
+                        "Replace " + request.matches + " non-overlapping matches in the editor? " +
+                            "Nothing is written to the document provider until Save. " +
+                            "Undo is session-only and subject to its size limit."
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        pendingReplaceAll = null
+                        val updated = if (!state.busy && state.text == request.snapshot) {
+                            MarkdownReplaceAll.replaceAll(
+                                state.text, request.query, request.replacement, request.matches
+                            )
+                        } else null
+                        when {
+                            updated == null ->
+                                vm.announce("Replace all was not applied: source changed, invalid text, or size limit exceeded.")
+                            updated.text == state.text ->
+                                vm.announce("Matches already use that replacement. No changes were made.")
+                            else -> {
+                                editorField = editorField.copy(
+                                    text = updated.text,
+                                    selection = TextRange(updated.caret),
+                                    composition = null,
+                                )
+                                foundStart = null
+                                findAttempted = false
+                                nextFindOffset = updated.caret
+                                showPreview = false
+                                vm.edit(updated.text)
+                                pendingHeadingFocus = true
+                                vm.announce(updated.replacements.toString() +
+                                    " matches replaced in the editor. Save to keep these changes.")
+                            }
+                        }
+                    }) { Text("Replace all") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingReplaceAll = null }) { Text("Cancel") }
                 },
             )
         }

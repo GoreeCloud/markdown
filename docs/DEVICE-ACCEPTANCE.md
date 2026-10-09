@@ -40,6 +40,8 @@ Before executing, record exact source SHA, CI run URL, Android API level, device
 | UI-13 | Undo/Redo with long Unicode text, IME composition, and saved selection | No lost edits or composition corruption; history bounded and UI remains responsive | Not run |
 | UI-14 | Open a different file after editing, then attempt Undo/Redo | Old document history unavailable; no cross-file text restoration | Not run |
 | UI-15 | Compact phone toolbar: reach Redo after Undo | Undo and Redo stay visible together without horizontal scrolling; both remain accessible at larger font scales | Not run on fixed build |
+| UI-16 | Replace All confirmation, cancel, dirty-state and Unicode | Snapshot guard, non-overlapping case-insensitive count, reject oversized/invalid output; only editor changes before Save; session Undo when history budget allows | Not run |
+| UI-17 | Live source statistics with emoji, combining marks and long documents | Line, word and Unicode code-point counts accurate without lag; remains readable at large font scales | Not run |
 
 ## Required evidence before release
 
