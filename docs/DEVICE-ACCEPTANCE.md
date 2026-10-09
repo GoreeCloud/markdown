@@ -36,6 +36,9 @@ Before executing, record exact source SHA, CI run URL, Android API level, device
 | UI-09 | Navigate long document with heading outline | Select correct heading and place editor focus, including with keyboard/TalkBack | Not run |
 | UI-10 | Search/save/outline messages with accessibility service | Polite announcements and understandable status without stealing focus | Not run |
 | UI-11 | Replace selected match using Previous/Next, Unicode and IME | Only the selected match changes; other occurrences and provider bytes remain unchanged until Save; rejected requests show a message | Not run |
+| UI-12 | Undo/Redo across edit, save and recovery restoration | Correct text and dirty baseline; no implicit provider write, same-document history only | Not run |
+| UI-13 | Undo/Redo with long Unicode text, IME composition, and saved selection | No lost edits or composition corruption; history bounded and UI remains responsive | Not run |
+| UI-14 | Open a different file after editing, then attempt Undo/Redo | Old document history unavailable; no cross-file text restoration | Not run |
 
 ## Required evidence before release
 
