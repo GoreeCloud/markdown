@@ -360,6 +360,8 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                                 showPreview = false
                                 vm.edit(updated.text)
                                 vm.announce("Selected match replaced. Save to keep this change.")
+                            } else {
+                                vm.announce("Replacement was not applied; reselect a valid match or shorten the replacement.")
                             }
                         },
                     ) { Text("Replace selected") }
