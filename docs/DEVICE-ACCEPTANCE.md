@@ -26,7 +26,7 @@ Before executing, record exact source SHA, CI run URL, Android API level, device
 | ID | Case | Expected behavior | State |
 | --- | --- | --- | --- |
 | UI-01 | Find Next, case-insensitivity and wraparound | Match highlighted and useful focus/line feedback | Not run |
-| UI-02 | IME composition, text selection, hardware keyboard | No composition or cursor corruption | Not run |
+| UI-02 | IME composition, text selection, hardware keyboard, Back key and viewport | Back dismisses visible keyboard before dirty-document confirmation; editor, Undo and Redo remain reachable without obscuring system bars; no composition/cursor corruption | Not run on keyboard-resize fix; earlier QA showed Back discard dialog while typing |
 | UI-03 | New/Open/Back with dirty document | Declining discard retains unsaved changes | Not run |
 | UI-04 | Editor changes while Save runs | Saved snapshot baseline retained, newer changes remain dirty | Not run |
 | UI-05 | Dark mode, font scaling, rotation, tablet | Controls remain visible and accessible | Not run |
