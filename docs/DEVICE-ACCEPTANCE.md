@@ -35,6 +35,7 @@ Before executing, record exact source SHA, CI run URL, Android API level, device
 | UI-08 | Background/process death during unsaved edit | Observe actual behavior, no invented recovery guarantee | Not run |
 | UI-09 | Navigate long document with heading outline | Select correct heading and place editor focus, including with keyboard/TalkBack | Not run |
 | UI-10 | Search/save/outline messages with accessibility service | Polite announcements and understandable status without stealing focus | Not run |
+| UI-11 | Replace selected match using Previous/Next, Unicode and IME | Only the selected match changes; other occurrences and provider bytes remain unchanged until Save; rejected requests show a message | Not run |
 
 ## Required evidence before release
 
