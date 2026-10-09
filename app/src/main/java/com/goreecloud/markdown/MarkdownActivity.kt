@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -51,6 +54,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -227,6 +231,8 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
     }
     val documentStats = remember(state.text) { MarkdownDocumentStats.from(state.text) }
     var pendingDiscard by remember { mutableStateOf<(() -> Unit)?>(null) }
+    // Let the IME consume Back first instead of prompting to discard while typing.
+    val isKeyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
 
     // Preserve IME composition and cursor selection during ordinary typing.
     // Update the field only when a new document or a recovered draft replaces
@@ -271,7 +277,7 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
         if (state.dirty) pendingDiscard = action else action()
     }
 
-    BackHandler(enabled = state.dirty && !state.busy) {
+    BackHandler(enabled = state.dirty && !state.busy && !isKeyboardVisible) {
         pendingDiscard = { (context as? Activity)?.finish() }
     }
 
@@ -283,8 +289,8 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
     MaterialTheme(colorScheme = palette) {
         Surface(modifier = Modifier.fillMaxSize()) {
             Column(
-                modifier = Modifier.fillMaxSize().windowInsetsPadding(androidx.compose.foundation.layout.WindowInsets.safeDrawing)
-                    .padding(16.dp),
+                modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
+                    .imePadding().padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text("Markdown", style = MaterialTheme.typography.headlineMedium)
@@ -296,6 +302,9 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                         documentStats.characters + " characters",
                     style = MaterialTheme.typography.bodySmall,
                 )
+                // Hide secondary navigation while the keyboard occupies the screen;
+                // keep the editor and both history controls reachable.
+                if (!isKeyboardVisible) {
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -327,6 +336,7 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                     TextButton(onClick = { showOutline = true }, enabled = !state.busy) {
                         Text("Outline")
                     }
+                }
                 }
                 // Keep history actions visible at all times. The navigation row
                 // above can scroll horizontally on compact devices.
