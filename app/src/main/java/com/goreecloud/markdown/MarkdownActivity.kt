@@ -86,21 +86,51 @@ internal data class EditorState(
     val busy: Boolean = false,
     val notice: String? = null,
     val recoveryDraft: String? = null,
+    val canUndo: Boolean = false,
+    val canRedo: Boolean = false,
 ) {
     val dirty get() = text != persistedText
 }
 
 internal class EditorViewModel : ViewModel() {
     private val mutable = MutableStateFlow(EditorState())
+    private val editHistory = MarkdownUndoHistory()
     val state = mutable.asStateFlow()
 
-    fun edit(text: String) = mutable.update { it.copy(text = text, notice = null) }
-    fun reset() = mutable.update { EditorState() }
+    fun edit(text: String) {
+        val current = mutable.value
+        if (current.busy || current.text == text) return
+        editHistory.record(current.text, text)
+        mutable.update { it.copy(text = text, notice = null,
+            canUndo = editHistory.canUndo, canRedo = editHistory.canRedo) }
+    }
+    fun reset() {
+        editHistory.reset()
+        mutable.value = EditorState()
+    }
+    fun undo(): String? {
+        val current = mutable.value
+        if (current.busy) return null
+        val restored = editHistory.undo(current.text)
+        mutable.update { it.copy(text = restored ?: it.text, notice = null,
+            canUndo = editHistory.canUndo, canRedo = editHistory.canRedo) }
+        return restored
+    }
+    fun redo(): String? {
+        val current = mutable.value
+        if (current.busy) return null
+        val restored = editHistory.redo(current.text)
+        mutable.update { it.copy(text = restored ?: it.text, notice = null,
+            canUndo = editHistory.canUndo, canRedo = editHistory.canRedo) }
+        return restored
+    }
     fun dismissNotice() = mutable.update { it.copy(notice = null) }
     fun announce(message: String) = mutable.update { it.copy(notice = message) }
-    fun restoreDraft() = mutable.update {
-        it.copy(text = it.recoveryDraft ?: it.text, recoveryDraft = null,
-            notice = "Private recovery draft restored. Save to verify the document.")
+    fun restoreDraft() {
+        val draft = mutable.value.recoveryDraft ?: return
+        edit(draft)
+        mutable.update { it.copy(recoveryDraft = null,
+            notice = "Private recovery draft restored. Save to verify the document.") }
     }
     fun dismissRecovery() = mutable.update { it.copy(recoveryDraft = null) }
 
@@ -114,6 +144,7 @@ internal class EditorViewModel : ViewModel() {
                     val text = storage.read(uri)
                     Triple(storage.displayName(uri), text, RecoveryReader.readSafely { storage.recoveryDraft(uri) })
                 }
+                editHistory.reset()
                 mutable.value = EditorState(
                     uri = uri, fileName = result.first,
                     text = result.second, persistedText = result.second,
@@ -264,7 +295,10 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                         Text(if (state.busy) "Working…" else "Save")
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     FilterChip(selected = !showPreview, onClick = { showPreview = false }, label = { Text("Edit") })
                     FilterChip(selected = showPreview, onClick = { showPreview = true }, label = { Text("Preview") })
                     TextButton(onClick = {
@@ -275,6 +309,36 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                     TextButton(onClick = { showOutline = true }, enabled = !state.busy) {
                         Text("Outline")
                     }
+                    TextButton(onClick = {
+                        val previous = vm.undo()
+                        if (previous != null) {
+                            editorField = editorField.copy(
+                                text = previous,
+                                selection = TextRange(editorField.selection.start.coerceIn(0, previous.length)),
+                                composition = null,
+                            )
+                            foundStart = null
+                            findAttempted = false
+                            nextFindOffset = 0
+                            showPreview = false
+                            pendingHeadingFocus = true
+                        }
+                    }, enabled = !state.busy && state.canUndo) { Text("Undo") }
+                    TextButton(onClick = {
+                        val next = vm.redo()
+                        if (next != null) {
+                            editorField = editorField.copy(
+                                text = next,
+                                selection = TextRange(editorField.selection.start.coerceIn(0, next.length)),
+                                composition = null,
+                            )
+                            foundStart = null
+                            findAttempted = false
+                            nextFindOffset = 0
+                            showPreview = false
+                            pendingHeadingFocus = true
+                        }
+                    }, enabled = !state.busy && state.canRedo) { Text("Redo") }
                 }
                 if (showFind) {
                     OutlinedTextField(
