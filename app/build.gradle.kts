@@ -4,6 +4,12 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// Default supports local QA builds; CI supplies a source-specific, isolated slot.
+val qaSlot = providers.gradleProperty("goreecloudQaSlot").orNull ?: "qa"
+require(qaSlot == "qa" || Regex("qa[a-f0-9]{10}").matches(qaSlot)) {
+    "QA slot must be 'qa' or 'qa' followed by exactly ten lowercase hexadecimal characters"
+}
+
 android {
     namespace = "com.goreecloud.markdown"
     compileSdk = 36
@@ -23,9 +29,13 @@ android {
         }
         create("qa") {
             initWith(getByName("debug"))
-            // Isolated package; does not modify existing Development app data.
-            applicationIdSuffix = ".qa"
-            resValue("string", "app_name", "GoreeCloud Markdown QA")
+            // A per-source CI slot avoids updating an earlier, differently signed QA APK.
+            applicationIdSuffix = ".$qaSlot"
+            resValue(
+                "string", "app_name",
+                if (qaSlot == "qa") "GoreeCloud Markdown QA"
+                else "GoreeCloud Markdown QA ${qaSlot.removePrefix("qa")}",
+            )
         }
         release {
             isMinifyEnabled = false
