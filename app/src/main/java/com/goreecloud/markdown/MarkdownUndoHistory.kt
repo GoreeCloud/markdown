@@ -96,10 +96,19 @@ internal class MarkdownUndoHistory(
     /** Collision-resistant fingerprint of exact UTF-16 code units, including surrogate pairs. */
     private fun fingerprint(text: String): ByteArray {
         val digest = MessageDigest.getInstance("SHA-256")
+        // Hash the same little-endian UTF-16 bytes in chunks instead of invoking
+        // MessageDigest twice per code unit on the main editor edit path.
+        val bytes = ByteArray(8192)
+        var filled = 0
         for (unit in text) {
-            digest.update((unit.code and 0xff).toByte())
-            digest.update((unit.code ushr 8).toByte())
+            if (filled == bytes.size) {
+                digest.update(bytes, 0, filled)
+                filled = 0
+            }
+            bytes[filled++] = (unit.code and 0xff).toByte()
+            bytes[filled++] = (unit.code ushr 8).toByte()
         }
+        if (filled > 0) digest.update(bytes, 0, filled)
         return digest.digest()
     }
 
