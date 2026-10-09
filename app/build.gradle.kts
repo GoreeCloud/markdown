@@ -17,8 +17,20 @@ android {
     }
 
     buildTypes {
-        debug { applicationIdSuffix = ".dev" }
-        release { isMinifyEnabled = false }
+        debug {
+            applicationIdSuffix = ".dev"
+            resValue("string", "app_name", "GoreeCloud Markdown DEV")
+        }
+        create("qa") {
+            initWith(getByName("debug"))
+            // Isolated package; does not modify existing Development app data.
+            applicationIdSuffix = ".qa"
+            resValue("string", "app_name", "GoreeCloud Markdown QA")
+        }
+        release {
+            isMinifyEnabled = false
+            resValue("string", "app_name", "GoreeCloud Markdown")
+        }
     }
 
     compileOptions {
