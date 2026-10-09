@@ -18,18 +18,18 @@ GoreeCloud Markdown is a standalone **native Android** application for reading, 
 
 The first implementation branch includes a document editor, preview, Open/New/Save/Save As, a dirty-document confirmation when changing documents, a size-limited strict UTF-8 reader, and a private recovery draft retained on a failed or unverified provider write. The platform's document provider still determines external-write atomicity; do **not** treat this as a guarantee of atomic replacement.
 
-The application has **not** been verified on a representative device, and no APK or production release is authorized by the baseline alone. See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/PLATFORM-CONFORMANCE.md](docs/PLATFORM-CONFORMANCE.md).
+A limited OnePlus N200 / Android 16 smoke test verified that an **earlier installed Development build** cold-launches and exposes the native editor. The current development branch and isolated QA features still require representative-device validation, including Undo/Redo layout and IME. No production release or owner-compatible Development signing is authorized by that smoke test alone. See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/PLATFORM-CONFORMANCE.md](docs/PLATFORM-CONFORMANCE.md).
 
 ## Build (development)
 
 Use JDK 17, Android SDK 36 and Gradle 8.11.1:
 
 ```sh
-gradle :app:assembleDebug
-gradle :app:testDebugUnitTest
+gradle :app:assembleDebug :app:assembleQa
+gradle :app:testDebugUnitTest :app:testQaUnitTest
 ```
 
-An independently installed Gradle is currently required; a verified Gradle wrapper/distribution is an outstanding setup obligation. Debug APKs are **not** a persistent owner-installable Development channel and must not be represented as update-compatible signed releases.
+An independently installed Gradle is currently required; a verified Gradle wrapper/distribution is an outstanding setup obligation. Both Development debug and isolated QA APKs use temporary CI/debug signing and are **not** a persistent owner-installable Development channel or update-compatible signed releases. See [docs/QA-DEVICE-TESTING.md](docs/QA-DEVICE-TESTING.md) for non-destructive USB device checks.
 
 ## Repository boundary
 
