@@ -28,11 +28,34 @@ jobs:
           "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
       - name: Compile and run unit tests
         run: gradle :app:assembleDebug :app:assembleQa :app:testDebugUnitTest :app:testQaUnitTest --no-daemon --stacktrace
+      - name: Verify isolated APK identities and deny Internet permission
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          AAPT="$SDK_ROOT/build-tools/36.0.0/aapt"
+          QA_APK="app/build/outputs/apk/qa/app-qa.apk"
+          DEV_APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$QA_APK"
+          test -s "$DEV_APK"
+          "$AAPT" dump badging "$QA_APK" | grep -F "package: name='com.goreecloud.markdown.qa'"
+          "$AAPT" dump badging "$DEV_APK" | grep -F "package: name='com.goreecloud.markdown.dev'"
+          "$AAPT" dump badging "$QA_APK" | grep -F "application-label:'GoreeCloud Markdown QA'"
+          if "$AAPT" dump permissions "$QA_APK" | grep -F "android.permission.INTERNET"; then
+            echo "Unexpected INTERNET permission in isolated QA APK" >&2
+            exit 1
+          fi
       - name: Upload temporary debug APK for device installability testing
         if: github.event_name == 'push' && success()
         uses: actions/upload-artifact@v4
         with:
           name: markdown-debug-${{ github.sha }}
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 3
+      - name: Upload isolated QA APK for bounded device testing
+        if: github.event_name == 'push' && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: markdown-qa-${{ github.sha }}
+          path: app/build/outputs/apk/qa/app-qa.apk
           if-no-files-found: error
           retention-days: 3
