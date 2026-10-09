@@ -97,6 +97,7 @@ internal class EditorViewModel : ViewModel() {
     fun edit(text: String) = mutable.update { it.copy(text = text, notice = null) }
     fun reset() = mutable.update { EditorState() }
     fun dismissNotice() = mutable.update { it.copy(notice = null) }
+    fun announce(message: String) = mutable.update { it.copy(notice = message) }
     fun restoreDraft() = mutable.update {
         it.copy(text = it.recoveryDraft ?: it.text, recoveryDraft = null,
             notice = "Private recovery draft restored. Save to verify the document.")
@@ -176,6 +177,7 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
     var showOutline by remember { mutableStateOf(false) }
     var pendingHeadingFocus by remember { mutableStateOf(false) }
     var findQuery by remember { mutableStateOf("") }
+    var replaceWith by remember { mutableStateOf("") }
     var nextFindOffset by remember { mutableIntStateOf(0) }
     var foundStart by remember { mutableStateOf<Int?>(null) }
     var findAttempted by remember { mutableStateOf(false) }
@@ -326,6 +328,41 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                             },
                         ) { Text("Next") }
                     }
+                    OutlinedTextField(
+                        value = replaceWith,
+                        onValueChange = { replaceWith = it },
+                        label = { Text("Replace selected match with") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    TextButton(
+                        enabled = !state.busy && findQuery.isNotEmpty() &&
+                            foundStart != null && editorField.text == state.text &&
+                            editorField.selection.start == foundStart &&
+                            editorField.selection.end == (foundStart ?: 0) + findQuery.length,
+                        onClick = {
+                            val updated = MarkdownReplace.replaceSelected(
+                                state.text,
+                                findQuery,
+                                replaceWith,
+                                editorField.selection.start,
+                                editorField.selection.end,
+                            )
+                            if (updated != null) {
+                                editorField = editorField.copy(
+                                    text = updated.text,
+                                    selection = TextRange(updated.caret),
+                                    composition = null,
+                                )
+                                foundStart = null
+                                findAttempted = false
+                                nextFindOffset = updated.caret
+                                showPreview = false
+                                vm.edit(updated.text)
+                                vm.announce("Selected match replaced. Save to keep this change.")
+                            }
+                        },
+                    ) { Text("Replace selected") }
                     if (findAttempted) {
                         val matchCount = remember(state.text, findQuery) {
                             MarkdownSearch.countMatches(state.text, findQuery)
