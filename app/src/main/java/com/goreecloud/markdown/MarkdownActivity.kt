@@ -309,6 +309,13 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                     TextButton(onClick = { showOutline = true }, enabled = !state.busy) {
                         Text("Outline")
                     }
+                }
+                // Keep history actions visible at all times. The navigation row
+                // above can scroll horizontally on compact devices.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     TextButton(onClick = {
                         val previous = vm.undo()
                         if (previous != null) {
