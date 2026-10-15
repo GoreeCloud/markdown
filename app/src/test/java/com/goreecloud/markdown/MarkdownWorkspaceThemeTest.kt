@@ -29,6 +29,22 @@ class MarkdownWorkspaceThemeTest {
         }
     }
 
+    @Test fun semanticAccentTextRemainsReadableOnEveryWorkspaceSurface() {
+        for (dark in listOf(false, true)) {
+            val tones = markdownWorkspaceColors(dark)
+            val surfaces = listOf(tones.canvas, tones.panel, tones.editor)
+            val accents = listOf(tones.copper, tones.forest, tones.ochre)
+            for (foreground in accents) {
+                for (background in surfaces) {
+                    assertTrue(
+                        "Workspace accent contrast below 4.5:1 in dark=$dark",
+                        contrast(foreground, background) >= 4.5f,
+                    )
+                }
+            }
+        }
+    }
+
     @Test fun contextualSemanticGroupsRemainDistinct() {
         for (dark in listOf(false, true)) {
             val tones = markdownWorkspaceColors(dark)
