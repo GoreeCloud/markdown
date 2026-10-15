@@ -25,7 +25,9 @@ internal object MarkdownOutline {
                 val runLength = if (character == '`' || character == '~') {
                     body.takeWhile { it == character }.length
                 } else 0
-                if (fenceCharacter == null && runLength >= 3) {
+                if (fenceCharacter == null && runLength >= 3 &&
+                    (character != '`' || '`' !in body.drop(runLength))
+                ) {
                     fenceCharacter = character
                     fenceWidth = runLength
                 } else if (fenceCharacter == character && runLength >= fenceWidth &&
