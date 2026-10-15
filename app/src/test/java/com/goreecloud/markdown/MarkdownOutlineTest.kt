@@ -33,7 +33,7 @@ class MarkdownOutlineTest {
     }
 
     @Test fun backtickInfoStringCannotContainBacktick() {
-        val input = "```md`invalid\n# Visible\n```\n## Also visible\n"
+        val input = "```md`invalid\n# Visible\n```\n# Hidden\n```\n## Also visible\n"
         assertEquals(
             listOf("Visible", "Also visible"),
             MarkdownOutline.headings(input).map { it.title },
