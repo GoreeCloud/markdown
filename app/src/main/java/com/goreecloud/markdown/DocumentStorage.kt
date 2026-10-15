@@ -6,6 +6,8 @@ import android.provider.OpenableColumns
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.io.FileInputStream
+import java.io.InputStream
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
@@ -28,18 +30,7 @@ internal class DocumentStorage(
         val source = context.contentResolver.openInputStream(uri)
             ?: throw IOException("Cannot open the selected document.")
         source.use { input ->
-            val bytes = ByteArrayOutputStream()
-            val buffer = ByteArray(8192)
-            while (true) {
-                val count = input.read(buffer)
-                if (count == -1) break
-                if (count == 0) continue
-                if (bytes.size() + count > MAX_DOCUMENT_BYTES) {
-                    throw IOException("Document exceeds the 2 MiB development safety limit.")
-                }
-                bytes.write(buffer, 0, count)
-            }
-            return StrictMarkdownUtf8.decode(bytes.toByteArray())
+            return StrictMarkdownUtf8.decode(BoundedDocumentBytes.read(input))
         }
     }
 
@@ -61,7 +52,8 @@ internal class DocumentStorage(
         val file = recoveryFile(uri)
         if (!file.isFile) return null
         if (file.length() > MAX_DOCUMENT_BYTES) throw IOException("Recovery draft exceeds the safety limit.")
-        return StrictMarkdownUtf8.decode(file.readBytes())
+        // File metadata may become stale; enforce the limit during the read.
+        return FileInputStream(file).use { StrictMarkdownUtf8.decode(BoundedDocumentBytes.read(it)) }
     }
 
     /**
@@ -120,6 +112,33 @@ internal class DocumentStorage(
             .digest(uri.toString().toByteArray(StandardCharsets.UTF_8))
             .joinToString("") { "%02x".format(it) }
         return File(File(context.filesDir, "recovery"), "$digest.draft")
+    }
+}
+
+/** Actual streaming byte bound shared by SAF reads and private recovery. */
+internal object BoundedDocumentBytes {
+    fun read(input: InputStream): ByteArray {
+        val output = ByteArrayOutputStream()
+        val buffer = ByteArray(8192)
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            if (count == 0) {
+                // A nonconforming provider must not spin forever on zero-length reads.
+                val byte = input.read()
+                if (byte < 0) break
+                if (output.size() >= MAX_DOCUMENT_BYTES) {
+                    throw IOException("Document exceeds the 2 MiB development safety limit.")
+                }
+                output.write(byte)
+            } else {
+                if (count > MAX_DOCUMENT_BYTES - output.size()) {
+                    throw IOException("Document exceeds the 2 MiB development safety limit.")
+                }
+                output.write(buffer, 0, count)
+            }
+        }
+        return output.toByteArray()
     }
 }
 
