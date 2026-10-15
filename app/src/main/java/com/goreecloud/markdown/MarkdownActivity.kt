@@ -281,13 +281,8 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
         pendingDiscard = { (context as? Activity)?.finish() }
     }
 
-    val palette = if (isSystemInDarkTheme()) {
-        darkColorScheme(primary = Color(0xFF9CC3FF), surface = Color(0xFF1C1F24))
-    } else {
-        lightColorScheme(primary = Color(0xFF245EB9), surface = Color(0xFFF8F9FC))
-    }
-    MaterialTheme(colorScheme = palette) {
-        Surface(modifier = Modifier.fillMaxSize()) {
+    MarkdownWorkspaceTheme { tones ->
+        Surface(modifier = Modifier.fillMaxSize(), color = tones.canvas) {
             Column(
                 modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
                     .imePadding().padding(16.dp),
