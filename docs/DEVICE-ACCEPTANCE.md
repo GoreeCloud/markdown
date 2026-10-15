@@ -51,6 +51,8 @@ Before executing, record exact source SHA, CI run URL, Android API level, device
 - **Observed:** default-scale Undo and Redo visible, synthetic `A` typed without Save, Undo→empty then Redo→`A`, live 1→0→1 word/character counts; first Back dismissed keyboard without discard, second Back prompted discard. Discarded test edit. No user documents, SAF files or private data accessed.
 - **Limits:** No real SAF provider/recovery, Save/readback, external conflict, process death, Unicode IME, large font, TalkBack or Glaze acceptance. These cases remain open. Documentation-only changes after this code SHA do not retroactively extend the device evidence.
 
+| UI-18 | Whole-application visual quality and color-coded semantics | Beautiful, polished, recognizably GoreeCloud writing workspace across source editor, preview, file actions, Undo/Redo, Find/Replace, Outline, notices and all dialogs; contextual light/dark palette, semantic text-plus-color for dirty/saved/busy/error/recovery and statistics, accessible contrast and no horizontal action clipping at supported phone/tablet widths and larger text. Require physical light/dark screenshots and independent Glaze review. | **Not run — owner-mandated release blocker** |
+
 ## Required evidence before release
 
 Run successful exact-head Android compilation and tests; validate representative devices and providers, dependency and source security, native Glaze 1.7.0 adoption, and all nine Integral Platform Systems. Establish protected repeatable Development signing with increasing versionCode. Deliver a qualified owner APK through GoreeCloud Google Drive first. Keep draft PR and task record open until separately accepted.
