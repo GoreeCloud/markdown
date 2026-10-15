@@ -32,6 +32,19 @@ class MarkdownOutlineTest {
         assertEquals(listOf(1, 2, 3), headings.map { it.level })
     }
 
+    @Test fun backtickInfoStringCannotContainBacktick() {
+        val input = "```md`invalid\n# Visible\n```\n## Also visible\n"
+        assertEquals(
+            listOf("Visible", "Also visible"),
+            MarkdownOutline.headings(input).map { it.title },
+        )
+    }
+
+    @Test fun tildeInfoStringMayContainBackticks() {
+        val input = "~~~md`valid\n# Hidden\n~~~\n## Visible\n"
+        assertEquals(listOf("Visible"), MarkdownOutline.headings(input).map { it.title })
+    }
+
     @Test fun emptyInputHasNoHeadings() {
         assertTrue(MarkdownOutline.headings("").isEmpty())
     }
