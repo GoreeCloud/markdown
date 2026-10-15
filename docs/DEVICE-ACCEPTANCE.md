@@ -1,6 +1,6 @@
 # Android acceptance matrix — GoreeCloud Markdown
 
-**Status: NOT RUN.** This is a development test plan, not evidence of runtime or platform acceptance.
+**Full acceptance: NOT RUN.** This remains a development test plan. Limited device smoke evidence below is not full runtime, provider, security, or platform acceptance.
 Before executing, record exact source SHA, CI run URL, Android API level, device, document provider, input method, tester, build signing identity, and timestamp. Publish redacted reproduction evidence only; never attach private document contents.
 
 ## Document integrity and permissions
@@ -26,7 +26,7 @@ Before executing, record exact source SHA, CI run URL, Android API level, device
 | ID | Case | Expected behavior | State |
 | --- | --- | --- | --- |
 | UI-01 | Find Next, case-insensitivity and wraparound | Match highlighted and useful focus/line feedback | Not run |
-| UI-02 | IME composition, text selection, hardware keyboard, Back key and viewport | Back dismisses visible keyboard before dirty-document confirmation; editor, Undo and Redo remain reachable without obscuring system bars; no composition/cursor corruption | Not run on keyboard-resize fix; earlier QA showed Back discard dialog while typing |
+| UI-02 | IME composition, text selection, hardware keyboard, Back key and viewport | Back dismisses visible keyboard before dirty-document confirmation; editor, Undo and Redo remain reachable without obscuring system bars; no composition/cursor corruption | Partial smoke pass: first Back hid IME without warning; second Back displayed dirty-document confirmation. Composition, cursor, hardware keyboard and screen scaling not run |
 | UI-03 | New/Open/Back with dirty document | Declining discard retains unsaved changes | Not run |
 | UI-04 | Editor changes while Save runs | Saved snapshot baseline retained, newer changes remain dirty | Not run |
 | UI-05 | Dark mode, font scaling, rotation, tablet | Controls remain visible and accessible | Not run |
@@ -36,12 +36,20 @@ Before executing, record exact source SHA, CI run URL, Android API level, device
 | UI-09 | Navigate long document with heading outline | Select correct heading and place editor focus, including with keyboard/TalkBack | Not run |
 | UI-10 | Search/save/outline messages with accessibility service | Polite announcements and understandable status without stealing focus | Not run |
 | UI-11 | Replace selected match using Previous/Next, Unicode and IME | Only the selected match changes; other occurrences and provider bytes remain unchanged until Save; rejected requests show a message | Not run |
-| UI-12 | Undo/Redo across edit, save and recovery restoration | Correct text and dirty baseline; no implicit provider write, same-document history only | Not run |
+| UI-12 | Undo/Redo across edit, save and recovery restoration | Correct text and dirty baseline; no implicit provider write, same-document history only | Partial smoke pass: synthetic A, Undo to empty, Redo to A, unsaved marker remained. Save, recovery, cross-document cases not run |
 | UI-13 | Undo/Redo with long Unicode text, IME composition, and saved selection | No lost edits or composition corruption; history bounded and UI remains responsive | Not run |
 | UI-14 | Open a different file after editing, then attempt Undo/Redo | Old document history unavailable; no cross-file text restoration | Not run |
-| UI-15 | Compact phone toolbar: reach Redo after Undo | Undo and Redo stay visible together without horizontal scrolling; both remain accessible at larger font scales | Not run on fixed build |
+| UI-15 | Compact phone toolbar: reach Redo after Undo | Undo and Redo stay visible together without horizontal scrolling; both remain accessible at larger font scales | Partial smoke pass: Undo/Redo simultaneously visible and tappable on OnePlus N200 at default font size. Large font scales not run |
 | UI-16 | Replace All confirmation, cancel, dirty-state and Unicode | Snapshot guard, non-overlapping case-insensitive count, reject oversized/invalid output; only editor changes before Save; session Undo when history budget allows | Not run |
-| UI-17 | Live source statistics with emoji, combining marks and long documents | Line, word and Unicode code-point counts accurate without lag; remains readable at large font scales | Not run |
+| UI-17 | Live source statistics with emoji, combining marks and long documents | Line, word and Unicode code-point counts accurate without lag; remains readable at large font scales | Partial smoke pass: empty to synthetic A to empty to A displayed 0/1 word and character counts. Emoji, combining marks, long document and font scaling not run |
+
+## Bounded physical-device smoke — 2026-10-15
+
+- **Verified code source:** `058058a70645b639d071b5119a4949859a2c2f82`. Both exact-head Android checks passed: push run `38801659961` and PR run `38801669499`.
+- **Test artifact:** CI push QA artifact `12004995393`, APK SHA-256 `c8b570b8bcf67167ea5c2f5f6df815fefee602d7d287db6e28d6d5a1a58583ff`; ephemeral Android Debug signer cert SHA-256 `c5c5fc1846ad4f26179efd0c8b005a859ab92c624f4328079a15336541f31aff`. This is not protected Development signing.
+- **Environment:** OnePlus N200 DE2117, Android API 36, USB ADB `fa90cf85`. Installed isolated `com.goreecloud.markdown.qa058058a706` (prior `com.goreecloud.markdown.qa` remained installed), and verified successful cold launch.
+- **Observed:** default-scale Undo and Redo visible, synthetic `A` typed without Save, Undo→empty then Redo→`A`, live 1→0→1 word/character counts; first Back dismissed keyboard without discard, second Back prompted discard. Discarded test edit. No user documents, SAF files or private data accessed.
+- **Limits:** No real SAF provider/recovery, Save/readback, external conflict, process death, Unicode IME, large font, TalkBack or Glaze acceptance. These cases remain open. Documentation-only changes after this code SHA do not retroactively extend the device evidence.
 
 ## Required evidence before release
 
