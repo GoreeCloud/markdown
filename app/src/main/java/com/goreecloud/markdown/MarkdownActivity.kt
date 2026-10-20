@@ -395,6 +395,18 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                     }, enabled = !state.busy && state.canRedo) { Text("Redo") }
                 }
                 if (showFind) {
+                    Surface(
+                        color = tones.panel,
+                        shape = MaterialTheme.shapes.large,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth()
+                                .heightIn(max = if (isKeyboardVisible) 140.dp else 240.dp)
+                                .verticalScroll(rememberScrollState())
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
                     OutlinedTextField(
                         value = findQuery,
                         onValueChange = {
@@ -502,6 +514,8 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                         )
+                    }
+                        }
                     }
                 }
                 state.notice?.let { notice ->
