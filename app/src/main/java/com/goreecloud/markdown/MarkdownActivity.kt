@@ -37,6 +37,9 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -226,6 +229,7 @@ private data class MarkdownReplaceAllRequest(
     val matches: Int,
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
     val context = LocalContext.current
@@ -311,7 +315,7 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
         if (state.dirty) pendingDiscard = action else action()
     }
 
-    BackHandler(enabled = state.dirty && !state.busy && !isKeyboardVisible) {
+    BackHandler(enabled = state.dirty && !state.busy && !isKeyboardVisible && !showFind && !showOutline && pendingReplaceAll == null) {
         pendingDiscard = { (context as? Activity)?.finish() }
     }
 
@@ -434,18 +438,27 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                         modifier = Modifier.weight(1f)) { Text("Redo") }
                 }
                 if (showFind) {
-                    Surface(
-                        color = tones.panel,
-                        shape = MaterialTheme.shapes.large,
-                        modifier = Modifier.fillMaxWidth(),
+                    ModalBottomSheet(
+                        onDismissRequest = { showFind = false },
+                        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                        containerColor = tones.panel,
                     ) {
                         Column(
                             modifier = Modifier.fillMaxWidth()
-                                .heightIn(max = if (isKeyboardVisible) 140.dp else 240.dp)
+                                .heightIn(max = 520.dp)
                                 .verticalScroll(rememberScrollState())
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                                .imePadding()
+                                .padding(horizontal = 20.dp, vertical = 10.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                            ) {
+                                Text("Find & replace", style = MaterialTheme.typography.titleLarge)
+                                TextButton(onClick = { showFind = false }) { Text("Close") }
+                            }
                     OutlinedTextField(
                         value = findQuery,
                         onValueChange = {
@@ -551,6 +564,13 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                                 "Match on line ${1 + state.text.take(index).count { it == '\n' }} • ${matchCount} matches"
                             } ?: "No matches",
                             style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        )
+                    } else if (findQuery.isNotEmpty()) {
+                        Text(
+                            "$matchCount matches · Review before replacing all",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                         )
                     }
