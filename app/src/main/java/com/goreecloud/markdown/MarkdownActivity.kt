@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -32,6 +33,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -299,21 +301,26 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                     .imePadding().padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text("Markdown", style = MaterialTheme.typography.headlineMedium)
-                Text(state.fileName + if (state.dirty) " • Unsaved changes" else "",
-                    style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    documentStats.lines.toString() + " lines • " +
-                        documentStats.words + " words • " +
-                        documentStats.characters + " characters",
-                    style = MaterialTheme.typography.bodySmall,
+                MarkdownWorkspaceHeader(
+                    fileName = state.fileName,
+                    dirty = state.dirty,
+                    busy = state.busy,
+                    hasFile = state.uri != null,
+                    recoveryPending = state.recoveryDraft != null,
+                    notice = state.notice,
+                    lines = documentStats.lines,
+                    words = documentStats.words,
+                    characters = documentStats.characters,
+                    compact = isKeyboardVisible,
+                    tones = tones,
                 )
                 // Hide secondary navigation while the keyboard occupies the screen;
                 // keep the editor and both history controls reachable.
                 if (!isKeyboardVisible) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     TextButton(onClick = { confirmDiscard { vm.reset(); showPreview = false } },
                         enabled = !state.busy) { Text("New") }
@@ -324,13 +331,19 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                     Button(onClick = {
                         state.uri?.let { vm.save(context, it) }
                             ?: createDocument.launch(state.fileName)
-                    }, enabled = !state.busy && (state.dirty || state.uri == null)) {
+                    }, enabled = !state.busy && (state.dirty || state.uri == null),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = tones.forestSoft,
+                            contentColor = tones.forestInk,
+                        ),
+                    ) {
                         Text(if (state.busy) "Working…" else "Save")
                     }
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     FilterChip(selected = !showPreview, onClick = { showPreview = false }, label = { Text("Edit") })
                     FilterChip(selected = showPreview, onClick = { showPreview = true }, label = { Text("Preview") })
