@@ -49,6 +49,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -227,17 +228,35 @@ private data class MarkdownReplaceAllRequest(
 private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
     val context = LocalContext.current
     val state by vm.state.collectAsState()
-    var showPreview by remember { mutableStateOf(false) }
-    var showFind by remember { mutableStateOf(false) }
-    var showOutline by remember { mutableStateOf(false) }
+    // Retain only bounded UI state across activity recreation, never the entire document
+    // text or a potentially large replacement value in an Android saved-state Bundle.
+    var showPreview by rememberSaveable { mutableStateOf(false) }
+    var showFind by rememberSaveable { mutableStateOf(false) }
+    var showOutline by rememberSaveable { mutableStateOf(false) }
     var pendingHeadingFocus by remember { mutableStateOf(false) }
-    var findQuery by remember { mutableStateOf("") }
+    var findQuery by rememberSaveable { mutableStateOf("") }
     var replaceWith by remember { mutableStateOf("") }
-    var nextFindOffset by remember { mutableIntStateOf(0) }
-    var foundStart by remember { mutableStateOf<Int?>(null) }
-    var findAttempted by remember { mutableStateOf(false) }
+    var nextFindOffset by rememberSaveable { mutableIntStateOf(0) }
+    var foundStart by rememberSaveable { mutableStateOf<Int?>(null) }
+    var findAttempted by rememberSaveable { mutableStateOf(false) }
     var pendingReplaceAll by remember { mutableStateOf<MarkdownReplaceAllRequest?>(null) }
-    var editorField by remember { mutableStateOf(TextFieldValue(state.text)) }
+    var caretStart by rememberSaveable { mutableIntStateOf(0) }
+    var caretEnd by rememberSaveable { mutableIntStateOf(0) }
+    var editorField by remember {
+        mutableStateOf(
+            TextFieldValue(
+                text = state.text,
+                selection = TextRange(
+                    caretStart.coerceIn(0, state.text.length),
+                    caretEnd.coerceIn(0, state.text.length),
+                ),
+            )
+        )
+    }
+    LaunchedEffect(editorField.selection) {
+        caretStart = editorField.selection.start
+        caretEnd = editorField.selection.end
+    }
     val editorFocus = remember { FocusRequester() }
     val matchCount = remember(state.text, findQuery) {
         MarkdownSearch.countMatches(state.text, findQuery)
@@ -410,7 +429,7 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                     OutlinedTextField(
                         value = findQuery,
                         onValueChange = {
-                            findQuery = it
+                            findQuery = it.take(256)
                             nextFindOffset = 0
                             foundStart = null
                             findAttempted = false
