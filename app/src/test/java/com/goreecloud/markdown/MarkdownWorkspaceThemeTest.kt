@@ -2,6 +2,7 @@ package com.goreecloud.markdown
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNotEquals
 import org.junit.Test
@@ -54,4 +55,50 @@ class MarkdownWorkspaceThemeTest {
             assertNotEquals(tones.canvas, tones.panel)
         }
     }
+    @Test fun mockupNewDocumentIsUnsavedUntilProviderVerifiesIt() {
+        assertEquals(
+            MarkdownVisualStatus.UNSAVED,
+            markdownDocumentVisualStatus(false, false, false, false, null),
+        )
+        assertEquals(
+            MarkdownVisualStatus.SAVED,
+            markdownDocumentVisualStatus(false, false, true, false, "Save verified."),
+        )
+    }
+
+    @Test fun unresolvedRecoveryNeverDisplaysGreenSaved() {
+        val pending = listOf(
+            "The recovery draft matches the saved document. No save is needed. The private recovery copy remains until verified cleanup.",
+            "Save verified. A redundant private recovery draft could not be removed.",
+            "Saved earlier edit; newer changes remain. Private recovery cleanup is pending.",
+            "Save unverified or failed. A private recovery draft may remain.",
+        )
+        for (message in pending) {
+            assertEquals(
+                "Misleading Saved state for message: $message",
+                MarkdownVisualStatus.ATTENTION,
+                markdownDocumentVisualStatus(false, false, true, false, message),
+            )
+        }
+        assertEquals(
+            MarkdownVisualStatus.ATTENTION,
+            markdownDocumentVisualStatus(false, false, true, true, null),
+        )
+    }
+
+    @Test fun workingAndUnsavedStatusesRemainTextualAndDeterministic() {
+        assertEquals(
+            MarkdownVisualStatus.WORKING,
+            markdownDocumentVisualStatus(true, true, true, true, null),
+        )
+        assertEquals(
+            MarkdownVisualStatus.UNSAVED,
+            markdownDocumentVisualStatus(true, false, true, false, "Saved earlier edit; newer changes remain."),
+        )
+        assertEquals(
+            "Unsaved",
+            markdownDocumentVisualStatus(true, false, true, false, null).label,
+        )
+    }
+
 }
