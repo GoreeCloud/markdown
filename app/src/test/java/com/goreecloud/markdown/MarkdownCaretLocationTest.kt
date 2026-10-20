@@ -46,9 +46,17 @@ class MarkdownCaretLocationTest {
         for (sample in samples) {
             val index = MarkdownCaretIndex(sample)
             for (end in -2..sample.length + 2) {
+                val bounded = end.coerceIn(0, sample.length)
+                val prefix = sample.substring(0, bounded)
+                val line = prefix.count { it == '\n' } + 1
+                val start = prefix.lastIndexOf('\n') + 1
+                val expected = MarkdownCaretLocation(
+                    line = line,
+                    column = Character.codePointCount(sample, start, bounded) + 1,
+                )
                 assertEquals(
                     "Cached index mismatch at offset $end in source $sample",
-                    MarkdownCaretLocation.at(sample, end),
+                    expected,
                     index.at(end),
                 )
             }
