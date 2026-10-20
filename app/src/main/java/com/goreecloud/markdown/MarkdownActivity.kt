@@ -35,6 +35,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -364,8 +366,24 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    FilterChip(selected = !showPreview, onClick = { showPreview = false }, label = { Text("Edit") })
-                    FilterChip(selected = showPreview, onClick = { showPreview = true }, label = { Text("Preview") })
+                    FilterChip(
+                        selected = !showPreview,
+                        onClick = { showPreview = false },
+                        label = { Text("Edit") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = tones.forestSoft,
+                            selectedLabelColor = tones.forestInk,
+                        ),
+                    )
+                    FilterChip(
+                        selected = showPreview,
+                        onClick = { showPreview = true },
+                        label = { Text("Preview") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = tones.copperSoft,
+                            selectedLabelColor = tones.copperInk,
+                        ),
+                    )
                     TextButton(onClick = {
                         showFind = !showFind
                         foundStart = null
@@ -382,7 +400,7 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    TextButton(onClick = {
+                    OutlinedButton(onClick = {
                         val previous = vm.undo()
                         if (previous != null) {
                             editorField = editorField.copy(
@@ -396,8 +414,9 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                             showPreview = false
                             pendingHeadingFocus = true
                         }
-                    }, enabled = !state.busy && state.canUndo) { Text("Undo") }
-                    TextButton(onClick = {
+                    }, enabled = !state.busy && state.canUndo,
+                        modifier = Modifier.weight(1f)) { Text("Undo") }
+                    OutlinedButton(onClick = {
                         val next = vm.redo()
                         if (next != null) {
                             editorField = editorField.copy(
@@ -411,7 +430,8 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                             showPreview = false
                             pendingHeadingFocus = true
                         }
-                    }, enabled = !state.busy && state.canRedo) { Text("Redo") }
+                    }, enabled = !state.busy && state.canRedo,
+                        modifier = Modifier.weight(1f)) { Text("Redo") }
                 }
                 if (showFind) {
                     Surface(
@@ -538,12 +558,53 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                     }
                 }
                 state.notice?.let { notice ->
-                    Text(notice, style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-                    TextButton(onClick = vm::dismissNotice) { Text("Dismiss message") }
+                    val attention = notice.startsWith("Save unverified") ||
+                        notice.startsWith("Open failed") ||
+                        notice.contains("could not", ignoreCase = true) ||
+                        notice.contains("cleanup is pending", ignoreCase = true) ||
+                        notice.contains("newer changes remain", ignoreCase = true)
+                    val verified = notice == "Save verified." && !state.dirty &&
+                        state.recoveryDraft == null
+                    val background = when {
+                        attention -> tones.ochreSoft
+                        verified -> tones.forestSoft
+                        else -> tones.copperSoft
+                    }
+                    val foreground = when {
+                        attention -> tones.ochreInk
+                        verified -> tones.forestInk
+                        else -> tones.copperInk
+                    }
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = background,
+                        shape = MaterialTheme.shapes.medium,
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                notice,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = foreground,
+                                modifier = Modifier.weight(1f).heightIn(max = 96.dp)
+                                    .verticalScroll(rememberScrollState())
+                                    .semantics { liveRegion = LiveRegionMode.Polite },
+                            )
+                            TextButton(onClick = vm::dismissNotice) {
+                                Text("Dismiss", color = foreground)
+                            }
+                        }
+                    }
                 }
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                Surface(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    color = tones.editor,
+                    shape = MaterialTheme.shapes.large,
+                    tonalElevation = 1.dp,
+                ) {
+                    Box(modifier = Modifier.fillMaxSize().padding(4.dp)) {
                     if (showPreview) {
                         val markwon = remember(context) { Markwon.create(context) }
                         // Preview is an Android TextView under a Compose theme; explicitly
@@ -580,6 +641,7 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                             textStyle = TextStyle(fontFamily = FontFamily.Monospace),
                             enabled = !state.busy,
                         )
+                    }
                     }
                 }
             }
