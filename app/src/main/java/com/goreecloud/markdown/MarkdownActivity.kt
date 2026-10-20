@@ -131,10 +131,21 @@ internal class EditorViewModel : ViewModel() {
     fun dismissNotice() = mutable.update { it.copy(notice = null) }
     fun announce(message: String) = mutable.update { it.copy(notice = message) }
     fun restoreDraft() {
-        val draft = mutable.value.recoveryDraft ?: return
+        val before = mutable.value
+        if (before.busy) return
+        val draft = before.recoveryDraft ?: return
         edit(draft)
-        mutable.update { it.copy(recoveryDraft = null,
-            notice = "Private recovery draft restored. Save to verify the document.") }
+        mutable.update { current ->
+            current.copy(
+                recoveryDraft = null,
+                notice = if (current.dirty) {
+                    "Private recovery draft restored. Save to keep these changes."
+                } else {
+                    "The recovery draft matches the saved document. No save is needed. " +
+                        "The private recovery copy remains until verified cleanup."
+                },
+            )
+        }
     }
     fun dismissRecovery() = mutable.update { it.copy(recoveryDraft = null) }
 
@@ -630,7 +641,9 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                 title = { Text("Recovery draft available") },
                 text = { Text("A private local draft from an earlier unverified save is available. Restore it into the editor?") },
                 confirmButton = {
-                    TextButton(onClick = vm::restoreDraft) { Text("Restore draft") }
+                    TextButton(onClick = {
+                        confirmDiscard { vm.restoreDraft(); showPreview = false }
+                    }) { Text("Restore draft") }
                 },
                 dismissButton = {
                     TextButton(onClick = vm::dismissRecovery) { Text("Keep file version") }
