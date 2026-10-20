@@ -332,7 +332,7 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                     lines = documentStats.lines,
                     words = documentStats.words,
                     characters = documentStats.characters,
-                    compact = isKeyboardVisible,
+                    compact = isKeyboardVisible || showFind,
                     tones = tones,
                 )
                 // Hide secondary navigation while the keyboard occupies the screen;
