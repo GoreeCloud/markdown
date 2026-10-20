@@ -74,4 +74,42 @@ class DocumentConflictGuardTest {
         }
     }
 
+    @Test
+    fun interruptedPendingDraftIsRecoverableWithoutCompletedRename() {
+        val pending = "A draft before interruption".toByteArray(Charsets.UTF_8)
+        assertTrue(RecoveryDraftSlots.choose(null, pending)!!.contentEquals(pending))
+    }
+
+    @Test
+    fun completedRescueIsRecoverableWithoutStagingFile() {
+        val rescue = "A saved recovery copy".toByteArray(Charsets.UTF_8)
+        assertTrue(RecoveryDraftSlots.choose(rescue, null)!!.contentEquals(rescue))
+    }
+
+    @Test
+    fun identicalPendingAndRescueMayBeReadSafely() {
+        val rescue = "Same draft".toByteArray(Charsets.UTF_8)
+        val pending = rescue.clone()
+        assertTrue(RecoveryDraftSlots.choose(rescue, pending)!!.contentEquals(rescue))
+    }
+
+    @Test
+    fun conflictingPendingAndRescueFailWithoutDiscardingEither() {
+        val rescue = "Rescue contents".toByteArray(Charsets.UTF_8)
+        val pending = "A separate interruption".toByteArray(Charsets.UTF_8)
+        try {
+            RecoveryDraftSlots.choose(rescue, pending)
+            fail("Distinct private recovery copies must not be silently reconciled")
+        } catch (expected: IOException) {
+            assertTrue(expected.message.orEmpty().contains("not overwritten"))
+        }
+        assertEquals("Rescue contents", rescue.toString(Charsets.UTF_8))
+        assertEquals("A separate interruption", pending.toString(Charsets.UTF_8))
+    }
+
+    @Test
+    fun noRecoveryFilesMeansNoRecoveryContent() {
+        assertTrue(RecoveryDraftSlots.choose(null, null) == null)
+    }
+
 }
