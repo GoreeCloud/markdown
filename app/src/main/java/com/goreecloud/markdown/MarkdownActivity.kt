@@ -284,8 +284,9 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
             )
         }
     }
-    LaunchedEffect(foundStart, showPreview) {
-        if (foundStart != null && !showPreview) editorFocus.requestFocus()
+    // A modal Find sheet owns focus; never pull IME focus into the editor beneath it.
+    LaunchedEffect(foundStart, showPreview, showFind) {
+        if (foundStart != null && !showPreview && !showFind) editorFocus.requestFocus()
     }
     LaunchedEffect(pendingHeadingFocus, showPreview) {
         if (pendingHeadingFocus && !showPreview) {
