@@ -268,6 +268,9 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
         MarkdownSearch.countMatches(state.text, findQuery)
     }
     val documentStats = remember(state.text) { MarkdownDocumentStats.from(state.text) }
+    val caretLocation = remember(state.text, editorField.selection.end) {
+        MarkdownCaretLocation.at(state.text, editorField.selection.end)
+    }
     var pendingDiscard by remember { mutableStateOf<(() -> Unit)?>(null) }
     // Let the IME consume Back first instead of prompting to discard while typing.
     val isKeyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
@@ -666,6 +669,22 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                             enabled = !state.busy,
                         )
                     }
+                    }
+                }
+                // Source-derived footer: never use the presentation mockup's hard-coded caret.
+                if (!showPreview && !isKeyboardVisible) {
+                    Row(modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(
+                            "${documentStats.lines} lines · ${documentStats.words} words · ${documentStats.characters} chars",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            "Ln ${caretLocation.line}, Col ${caretLocation.column}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
