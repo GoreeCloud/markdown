@@ -68,6 +68,14 @@ internal class DocumentStorage(
         if (!directory.isDirectory && !directory.mkdirs()) {
             throw IOException("Cannot prepare private recovery directory; provider not written.")
         }
+        // Never overwrite a distinct, previously retained rescue copy. It may be
+        // the only surviving record of unsaved edits after an earlier failed write.
+        // An identical copy can be refreshed safely; on uncertainty, fail closed.
+        if (rescue.exists()) {
+            if (!rescue.isFile) throw IOException("Private recovery entry is not a file; save refused.")
+            val previous = FileInputStream(rescue).use { BoundedDocumentBytes.read(it) }
+            RecoveryDraftOverwriteGuard.verify(previous, contents)
+        }
         // Write, fsync and atomically replace app-private recovery bytes before SAF write.
         // Fail closed if the filesystem cannot provide this guarantee.
         val staging = File(directory, "${rescue.name}.pending")
@@ -172,6 +180,18 @@ internal object DocumentConflictGuard {
             throw IOException(
                 "The document changed outside GoreeCloud Markdown. " +
                     "It was not overwritten; use Save as to preserve both versions."
+            )
+        }
+    }
+}
+
+/** Never silently replace an older, distinct recovery copy for this URI. */
+internal object RecoveryDraftOverwriteGuard {
+    fun verify(existingRecoveryBytes: ByteArray, intendedSaveBytes: ByteArray) {
+        if (!existingRecoveryBytes.contentEquals(intendedSaveBytes)) {
+            throw IOException(
+                "A different private recovery draft already exists. It was not overwritten. " +
+                    "Restore the recovery draft first, or use Save as to preserve both versions."
             )
         }
     }
