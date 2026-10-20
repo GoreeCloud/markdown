@@ -17,7 +17,7 @@ internal data class MarkdownCaretLocation(val line: Int, val column: Int) {
                     lineStart = index + 1
                 }
             }
-            val codePoints = Character.codePointCount(text, lineStart, offset - lineStart)
+            val codePoints = Character.codePointCount(text, lineStart, offset)
             return MarkdownCaretLocation(line = line, column = codePoints + 1)
         }
     }
