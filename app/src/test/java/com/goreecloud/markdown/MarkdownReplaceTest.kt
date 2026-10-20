@@ -24,6 +24,19 @@ class MarkdownReplaceTest {
         assertNull(MarkdownReplace.replaceSelected("one", "", "new", 0, 0))
     }
 
+    @Test fun identicalReplacementIsRecognizableAsNoChange() {
+        val source = "one two"
+        val result = MarkdownReplace.replaceSelected(source, "one", "one", 0, 3)
+        assertEquals(source, result?.text)
+        assertEquals(3, result?.caret)
+    }
+
+    @Test fun replacingSameLettersWithDifferentCaseReallyChangesText() {
+        val source = "ONE two"
+        val result = MarkdownReplace.replaceSelected(source, "one", "one", 0, 3)
+        assertEquals("one two", result?.text)
+    }
+
     @Test fun permitsEmptyReplacementAsExplicitDeletion() {
         val result = MarkdownReplace.replaceSelected("one two", "one", "", 0, 3)
         assertEquals(" two", result?.text)
