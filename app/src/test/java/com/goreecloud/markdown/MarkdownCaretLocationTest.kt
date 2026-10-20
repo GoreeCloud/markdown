@@ -34,4 +34,34 @@ class MarkdownCaretLocationTest {
         assertEquals(MarkdownCaretLocation(2, 1), MarkdownCaretLocation.at("a\r\nb", 3))
         assertEquals(MarkdownCaretLocation(2, 2), MarkdownCaretLocation.at("a\r\nb", 4))
     }
+    @Test fun cachedIndexMatchesDirectCoordinatesAcrossEveryCaretOffset() {
+        val samples = listOf(
+            "",
+            "\n",
+            "abc",
+            "a\r\nb\nc",
+            "🙂a\nCafe\u0301",
+            "\n\nMultiple\n\nlines\n",
+        )
+        for (sample in samples) {
+            val index = MarkdownCaretIndex(sample)
+            for (end in -2..sample.length + 2) {
+                assertEquals(
+                    "Cached index mismatch at offset $end in source $sample",
+                    MarkdownCaretLocation.at(sample, end),
+                    index.at(end),
+                )
+            }
+        }
+    }
+
+    @Test fun cursorNavigationWorksOnLongDocumentsWithoutRebuildingIndex() {
+        val document = ("line\n").repeat(1500) + "🙂done"
+        val index = MarkdownCaretIndex(document)
+        assertEquals(MarkdownCaretLocation(1501, 1), index.at(7500))
+        assertEquals(MarkdownCaretLocation(1501, 2), index.at(7502))
+        assertEquals(MarkdownCaretLocation(1501, 6), index.at(document.length))
+        assertEquals(MarkdownCaretLocation(1, 1), index.at(0))
+    }
+
 }
