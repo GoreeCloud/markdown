@@ -550,20 +550,24 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                                 editorField.selection.start,
                                 editorField.selection.end,
                             )
-                            if (updated != null) {
-                                editorField = editorField.copy(
-                                    text = updated.text,
-                                    selection = TextRange(updated.caret),
-                                    composition = null,
-                                )
-                                foundStart = null
-                                findAttempted = false
-                                nextFindOffset = updated.caret
-                                showPreview = false
-                                vm.edit(updated.text)
-                                vm.announce("Selected match replaced. Save to keep this change.")
-                            } else {
-                                vm.announce("Replacement was not applied; reselect a valid match or shorten the replacement.")
+                            when {
+                                updated == null ->
+                                    vm.announce("Replacement was not applied; reselect a valid match or shorten the replacement.")
+                                updated.text == state.text ->
+                                    vm.announce("Selected match already uses that text. No changes were made.")
+                                else -> {
+                                    editorField = editorField.copy(
+                                        text = updated.text,
+                                        selection = TextRange(updated.caret),
+                                        composition = null,
+                                    )
+                                    foundStart = null
+                                    findAttempted = false
+                                    nextFindOffset = updated.caret
+                                    showPreview = false
+                                    vm.edit(updated.text)
+                                    vm.announce("Selected match replaced. Save to keep this change.")
+                                }
                             }
                         },
                     ) { Text("Replace selected") }
