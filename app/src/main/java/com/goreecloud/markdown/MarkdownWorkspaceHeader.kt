@@ -36,24 +36,19 @@ internal fun MarkdownWorkspaceHeader(
     compact: Boolean,
     tones: MarkdownWorkspaceColors,
 ) {
-    val attention = recoveryPending || notice?.let {
-        it.startsWith("Save unverified", ignoreCase = true) ||
-            it.startsWith("Open failed", ignoreCase = true) ||
-            it.contains("could not be read", ignoreCase = true) ||
-            it.contains("cleanup is pending", ignoreCase = true) ||
-            it.contains("could not be removed", ignoreCase = true)
-    } == true
-    val status = when {
-        busy -> "Working"
-        attention -> "Needs attention"
-        dirty -> "Unsaved"
-        !hasFile -> "New draft"
-        else -> "Saved"
-    }
-    val (surface, ink) = when {
-        busy || attention -> tones.ochreSoft to tones.ochreInk
-        dirty || !hasFile -> tones.copperSoft to tones.copperInk
-        else -> tones.forestSoft to tones.forestInk
+    val visualStatus = markdownDocumentVisualStatus(
+        dirty = dirty,
+        busy = busy,
+        hasFile = hasFile,
+        recoveryPending = recoveryPending,
+        notice = notice,
+    )
+    val status = visualStatus.label
+    val (surface, ink) = when (visualStatus) {
+        MarkdownVisualStatus.WORKING, MarkdownVisualStatus.ATTENTION ->
+            tones.ochreSoft to tones.ochreInk
+        MarkdownVisualStatus.UNSAVED -> tones.copperSoft to tones.copperInk
+        MarkdownVisualStatus.SAVED -> tones.forestSoft to tones.forestInk
     }
     if (compact) {
         Row(
@@ -150,5 +145,34 @@ private fun MarkdownMetric(
             Text(count.toString(), color = foreground, style = MaterialTheme.typography.titleMedium)
             Text(label, color = foreground, style = MaterialTheme.typography.labelSmall)
         }
+    }
+}
+
+/** UI-neutral document status. The provider, not this function, verifies durability. */
+internal enum class MarkdownVisualStatus(val label: String) {
+    WORKING("Working"), ATTENTION("Needs attention"), UNSAVED("Unsaved"), SAVED("Saved")
+}
+
+/** Fail closed on ambiguous recovery and provider messages, never claim a clean save. */
+internal fun markdownDocumentVisualStatus(
+    dirty: Boolean,
+    busy: Boolean,
+    hasFile: Boolean,
+    recoveryPending: Boolean,
+    notice: String?,
+): MarkdownVisualStatus {
+    val unresolved = recoveryPending || notice?.let {
+        it.startsWith("Save unverified", ignoreCase = true) ||
+            it.startsWith("Open failed", ignoreCase = true) ||
+            it.contains("could not", ignoreCase = true) ||
+            it.contains("cleanup is pending", ignoreCase = true) ||
+            it.contains("recovery copy remains", ignoreCase = true) ||
+            it.contains("recovery draft remains", ignoreCase = true)
+    } == true
+    return when {
+        busy -> MarkdownVisualStatus.WORKING
+        unresolved -> MarkdownVisualStatus.ATTENTION
+        dirty || !hasFile -> MarkdownVisualStatus.UNSAVED
+        else -> MarkdownVisualStatus.SAVED
     }
 }
