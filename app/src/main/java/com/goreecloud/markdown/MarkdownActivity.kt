@@ -269,8 +269,9 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
         MarkdownSearch.countMatches(state.text, findQuery)
     }
     val documentStats = remember(state.text) { MarkdownDocumentStats.from(state.text) }
-    val caretLocation = remember(state.text, editorField.selection.end) {
-        MarkdownCaretLocation.at(state.text, editorField.selection.end)
+    val caretIndex = remember(state.text) { MarkdownCaretIndex(state.text) }
+    val caretLocation = remember(caretIndex, editorField.selection.end) {
+        caretIndex.at(editorField.selection.end)
     }
     var pendingDiscard by remember { mutableStateOf<(() -> Unit)?>(null) }
     // Let the IME consume Back first instead of prompting to discard while typing.
