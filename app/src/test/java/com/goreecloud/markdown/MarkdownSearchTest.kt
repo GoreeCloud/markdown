@@ -42,6 +42,23 @@ class MarkdownSearchTest {
     }
 
     @Test
+    fun activeMatchNumberUsesRealNonOverlappingOccurrences() {
+        val doc = "Markdown and MARKDOWN again"
+        assertEquals(1, MarkdownSearch.matchOrdinal(doc, "markdown", 0))
+        assertEquals(2, MarkdownSearch.matchOrdinal(doc, "markdown", 13))
+        assertNull(MarkdownSearch.matchOrdinal(doc, "markdown", 1))
+    }
+
+    @Test
+    fun staleSelectionAndMissingMatchNeverClaimAnOrdinal() {
+        assertNull(MarkdownSearch.matchOrdinal("banana", "ana", 3))
+        assertEquals(1, MarkdownSearch.matchOrdinal("banana", "ana", 1))
+        assertNull(MarkdownSearch.matchOrdinal("x", "", 0))
+        assertNull(MarkdownSearch.matchOrdinal("x", "x", null))
+        assertNull(MarkdownSearch.matchOrdinal("x", "x", -1))
+    }
+
+    @Test
     fun emptyQueryOrMissingMatchReturnsNull() {
         assertNull(MarkdownSearch.findNext("Alpha", ""))
         assertNull(MarkdownSearch.findNext("Alpha", "omega"))
