@@ -49,11 +49,20 @@ internal class DocumentStorage(
     }
 
     fun recoveryDraft(uri: Uri): String? {
-        val file = recoveryFile(uri)
-        if (!file.isFile) return null
+        val rescue = recoveryFile(uri)
+        val pending = File(rescue.parentFile, "${rescue.name}.pending")
+        val rescueBytes = privateRecoveryBytes(rescue)
+        val pendingBytes = privateRecoveryBytes(pending)
+        val chosen = RecoveryDraftSlots.choose(rescueBytes, pendingBytes) ?: return null
+        return StrictMarkdownUtf8.decode(chosen)
+    }
+
+    private fun privateRecoveryBytes(file: File): ByteArray? {
+        if (!file.exists()) return null
+        if (!file.isFile) throw IOException("Private recovery entry is not a regular file.")
         if (file.length() > MAX_DOCUMENT_BYTES) throw IOException("Recovery draft exceeds the safety limit.")
-        // File metadata may become stale; enforce the limit during the read.
-        return FileInputStream(file).use { StrictMarkdownUtf8.decode(BoundedDocumentBytes.read(it)) }
+        // Enforce actual read bytes even if provider or filesystem metadata is stale.
+        return FileInputStream(file).use { BoundedDocumentBytes.read(it) }
     }
 
     /**
@@ -71,26 +80,25 @@ internal class DocumentStorage(
         // Never overwrite a distinct, previously retained rescue copy. It may be
         // the only surviving record of unsaved edits after an earlier failed write.
         // An identical copy can be refreshed safely; on uncertainty, fail closed.
-        if (rescue.exists()) {
-            if (!rescue.isFile) throw IOException("Private recovery entry is not a file; save refused.")
-            val previous = FileInputStream(rescue).use { BoundedDocumentBytes.read(it) }
-            RecoveryDraftOverwriteGuard.verify(previous, contents)
-        }
-        // Write, fsync and atomically replace app-private recovery bytes before SAF write.
-        // Fail closed if the filesystem cannot provide this guarantee.
+        privateRecoveryBytes(rescue)?.let { RecoveryDraftOverwriteGuard.verify(it, contents) }
+        // A power loss before the atomic rename may leave a fully fsynced pending
+        // draft. Never silently destroy that copy either.
         val staging = File(directory, "${rescue.name}.pending")
-        try {
+        val pendingBytes = privateRecoveryBytes(staging)
+        pendingBytes?.let { RecoveryDraftOverwriteGuard.verify(it, contents) }
+        // Reuse an identical pending copy without truncating it first.
+        if (pendingBytes == null) {
             FileOutputStream(staging).use {
                 it.write(contents)
                 it.fd.sync()
             }
-            Files.move(
-                staging.toPath(), rescue.toPath(),
-                StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING,
-            )
-        } finally {
-            staging.delete()
         }
+        // A failed move must not delete the pending bytes; they can be recovered
+        // on a subsequent Open. Provider writing begins only after this succeeds.
+        Files.move(
+            staging.toPath(), rescue.toPath(),
+            StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING,
+        )
 
         // SAF document providers do not support atomic compare-and-replace.
         // This check blocks observed conflicts, but not racing external changes.
@@ -194,5 +202,15 @@ internal object RecoveryDraftOverwriteGuard {
                     "Restore the recovery draft first, or use Save as to preserve both versions."
             )
         }
+    }
+}
+
+/** Preserve both copies when an interrupted rename left conflicting recovery bytes. */
+internal object RecoveryDraftSlots {
+    fun choose(rescueBytes: ByteArray?, pendingBytes: ByteArray?): ByteArray? {
+        if (rescueBytes != null && pendingBytes != null) {
+            RecoveryDraftOverwriteGuard.verify(rescueBytes, pendingBytes)
+        }
+        return rescueBytes ?: pendingBytes
     }
 }
