@@ -472,6 +472,20 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    val activeMatch = remember(state.text, findQuery, foundStart) {
+                        MarkdownSearch.matchOrdinal(state.text, findQuery, foundStart)
+                    }
+                    Text(
+                        when {
+                            findQuery.isEmpty() -> "Enter a term to search"
+                            matchCount == 0 -> "No matches"
+                            activeMatch != null -> "$activeMatch of $matchCount matches"
+                            else -> "$matchCount matches"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = tones.copper,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -559,22 +573,11 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                             )
                         },
                     ) { Text("Replace all…") }
-                    if (findAttempted) {
-                        Text(
-                            foundStart?.let { index ->
-                                "Match on line ${1 + state.text.take(index).count { it == '\n' }} • ${matchCount} matches"
-                            } ?: "No matches",
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                        )
-                    } else if (findQuery.isNotEmpty()) {
-                        Text(
-                            "$matchCount matches · Review before replacing all",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                        )
-                    }
+                    Text(
+                        "Review matches before replacing all",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                         }
                     }
                 }
