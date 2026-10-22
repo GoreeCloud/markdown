@@ -219,8 +219,12 @@ internal class EditorViewModel : ViewModel() {
                 }
             } catch (error: Exception) {
                 mutable.update {
-                    it.copy(busy = false, notice = "Save unverified or failed. A private recovery draft may remain: " +
-                        (error.message ?: "unknown error"))
+                    it.copy(
+                        busy = false,
+                        recoveryPending = true,
+                        notice = "Save unverified or failed. A private recovery draft may remain: " +
+                            (error.message ?: "unknown error"),
+                    )
                 }
             }
         }
