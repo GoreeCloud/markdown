@@ -301,8 +301,14 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
     LaunchedEffect(foundStart, showPreview, showFind) {
         if (foundStart != null && !showPreview && !showFind) editorFocus.requestFocus()
     }
-    LaunchedEffect(pendingHeadingFocus, showPreview) {
-        if (pendingHeadingFocus && !showPreview) {
+    // Defer outline/replacement focus until the modal sheet fully closes.
+    LaunchedEffect(pendingHeadingFocus, showPreview, showFind) {
+        if (MarkdownModalFocus.restoreEditorFocus(
+                focusPending = pendingHeadingFocus,
+                preview = showPreview,
+                findOpen = showFind,
+            )
+        ) {
             editorFocus.requestFocus()
             pendingHeadingFocus = false
         }
@@ -329,7 +335,19 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
         if (state.dirty) pendingDiscard = action else action()
     }
 
-    BackHandler(enabled = state.dirty && !state.busy && !isKeyboardVisible && !showFind && !showOutline && pendingReplaceAll == null) {
+    // The modal owns Back while a discard decision is pending; never replace its
+    // callback with the activity-exit callback on another Back press.
+    BackHandler(
+        enabled = MarkdownModalFocus.allowUnsavedBack(
+            dirty = state.dirty,
+            busy = state.busy,
+            keyboardVisible = isKeyboardVisible,
+            findOpen = showFind,
+            outlineOpen = showOutline,
+            replaceConfirmationOpen = pendingReplaceAll != null,
+            discardConfirmationOpen = pendingDiscard != null,
+        ),
+    ) {
         pendingDiscard = { (context as? Activity)?.finish() }
     }
 
@@ -829,4 +847,21 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
 internal object RecoveryDialogPresentation {
     fun show(available: Boolean, discardConfirmationPending: Boolean): Boolean =
         available && !discardConfirmationPending
+}
+
+/** Pure modal ownership rules shared by Back navigation and delayed editor focus. */
+internal object MarkdownModalFocus {
+    fun allowUnsavedBack(
+        dirty: Boolean,
+        busy: Boolean,
+        keyboardVisible: Boolean,
+        findOpen: Boolean,
+        outlineOpen: Boolean,
+        replaceConfirmationOpen: Boolean,
+        discardConfirmationOpen: Boolean,
+    ) = dirty && !busy && !keyboardVisible && !findOpen && !outlineOpen &&
+        !replaceConfirmationOpen && !discardConfirmationOpen
+
+    fun restoreEditorFocus(focusPending: Boolean, preview: Boolean, findOpen: Boolean) =
+        focusPending && !preview && !findOpen
 }
