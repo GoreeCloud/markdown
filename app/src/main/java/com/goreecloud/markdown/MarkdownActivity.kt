@@ -804,7 +804,10 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                 },
             )
         }
-        if (state.recoveryDraft != null) {
+        if (RecoveryDialogPresentation.show(
+                available = state.recoveryDraft != null,
+                discardConfirmationPending = pendingDiscard != null,
+            )) {
             AlertDialog(
                 onDismissRequest = vm::dismissRecovery,
                 title = { Text("Recovery draft available") },
@@ -820,4 +823,10 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
             )
         }
     }
+}
+
+/** A destructive-action confirmation must never compete with the recovery dialog. */
+internal object RecoveryDialogPresentation {
+    fun show(available: Boolean, discardConfirmationPending: Boolean): Boolean =
+        available && !discardConfirmationPending
 }
