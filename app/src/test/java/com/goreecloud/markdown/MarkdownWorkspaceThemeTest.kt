@@ -137,4 +137,25 @@ class MarkdownWorkspaceThemeTest {
     }
 
 
+    @Test fun failedSaveNeedsAttentionEvenAfterWarningDismissed() {
+        val failedSave = EditorState(
+            text = "provider's last verified bytes",
+            persistedText = "provider's last verified bytes",
+            recoveryPending = true,
+            notice = "Save unverified or failed. A private recovery draft may remain.",
+        )
+        val dismissed = failedSave.copy(notice = null)
+        assertEquals(
+            MarkdownVisualStatus.ATTENTION,
+            markdownDocumentVisualStatus(
+                dirty = dismissed.dirty,
+                busy = dismissed.busy,
+                hasFile = true,
+                recoveryPending = dismissed.recoveryPending,
+                notice = dismissed.notice,
+            ),
+        )
+        assertTrue(dismissed.recoveryPending)
+    }
+
 }
