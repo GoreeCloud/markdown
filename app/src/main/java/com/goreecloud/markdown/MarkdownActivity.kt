@@ -99,6 +99,8 @@ internal data class EditorState(
     val busy: Boolean = false,
     val notice: String? = null,
     val recoveryDraft: String? = null,
+    /** Remains true after a warning is dismissed until recovery cleanup is verified. */
+    val recoveryPending: Boolean = false,
     val canUndo: Boolean = false,
     val canRedo: Boolean = false,
 ) {
@@ -173,6 +175,7 @@ internal class EditorViewModel : ViewModel() {
                     uri = uri, fileName = result.first,
                     text = result.second, persistedText = result.second,
                     recoveryDraft = result.third.draft,
+                    recoveryPending = result.third.readFailed || result.third.draft != null,
                     notice = if (result.third.readFailed)
                         "Document opened. A private recovery draft could not be read; it has not been deleted."
                     else null,
@@ -207,6 +210,7 @@ internal class EditorViewModel : ViewModel() {
                         fileName = name,
                         persistedText = snapshot.text,
                         busy = false,
+                        recoveryPending = outcome.recoveryCleanupPending,
                         notice = SaveNotice.message(
                             newerEditsRemain = it.text != snapshot.text,
                             recoveryCleanupPending = outcome.recoveryCleanupPending,
@@ -337,7 +341,7 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                     dirty = state.dirty,
                     busy = state.busy,
                     hasFile = state.uri != null,
-                    recoveryPending = state.recoveryDraft != null,
+                    recoveryPending = state.recoveryPending,
                     notice = state.notice,
                     lines = documentStats.lines,
                     words = documentStats.words,
@@ -597,7 +601,7 @@ private fun MarkdownApp(vm: EditorViewModel = viewModel()) {
                         notice.contains("cleanup is pending", ignoreCase = true) ||
                         notice.contains("newer changes remain", ignoreCase = true)
                     val verified = notice == "Save verified." && !state.dirty &&
-                        state.recoveryDraft == null
+                        !state.recoveryPending
                     val background = when {
                         attention -> tones.ochreSoft
                         verified -> tones.forestSoft
