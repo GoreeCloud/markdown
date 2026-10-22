@@ -101,4 +101,40 @@ class MarkdownWorkspaceThemeTest {
         )
     }
 
+    @Test fun dismissingRecoveryNoticeDoesNotClearUnderlyingAttention() {
+        val state = EditorState(
+            text = "saved source",
+            persistedText = "saved source",
+            recoveryDraft = "older private source",
+            recoveryPending = true,
+            notice = "A private recovery draft is available.",
+        )
+        // Dismissal changes the UI message and may hide the dialog, but it
+        // cannot certify deletion of the separate private recovery file.
+        val dismissed = state.copy(recoveryDraft = null, notice = null)
+        assertTrue(dismissed.recoveryPending)
+        assertEquals(
+            MarkdownVisualStatus.ATTENTION,
+            markdownDocumentVisualStatus(
+                dirty = dismissed.dirty,
+                busy = dismissed.busy,
+                hasFile = true,
+                recoveryPending = dismissed.recoveryPending,
+                notice = dismissed.notice,
+            ),
+        )
+        val cleaned = dismissed.copy(recoveryPending = false)
+        assertEquals(
+            MarkdownVisualStatus.SAVED,
+            markdownDocumentVisualStatus(
+                dirty = cleaned.dirty,
+                busy = cleaned.busy,
+                hasFile = true,
+                recoveryPending = cleaned.recoveryPending,
+                notice = cleaned.notice,
+            ),
+        )
+    }
+
+
 }
