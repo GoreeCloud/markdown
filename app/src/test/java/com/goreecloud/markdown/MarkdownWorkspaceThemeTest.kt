@@ -181,4 +181,51 @@ class MarkdownWorkspaceThemeTest {
         ))
     }
 
+    @Test fun discardDialogAlwaysOwnsBackNavigationUntilResolved() {
+        val allowed = {
+            pending: Boolean -> MarkdownModalFocus.allowUnsavedBack(
+                dirty = true, busy = false, keyboardVisible = false,
+                findOpen = false, outlineOpen = false,
+                replaceConfirmationOpen = false, discardConfirmationOpen = pending,
+            )
+        }
+        assertTrue(allowed(false))
+        assertTrue(!allowed(true))
+        assertTrue(allowed(false))
+    }
+
+    @Test fun modalAndKeyboardStatesPreventUnsavedExitHandler() {
+        fun allowed(ime: Boolean = false, find: Boolean = false,
+                    outline: Boolean = false, replace: Boolean = false) =
+            MarkdownModalFocus.allowUnsavedBack(
+                dirty = true, busy = false, keyboardVisible = ime,
+                findOpen = find, outlineOpen = outline,
+                replaceConfirmationOpen = replace, discardConfirmationOpen = false,
+            )
+        assertTrue(!allowed(ime = true))
+        assertTrue(!allowed(find = true))
+        assertTrue(!allowed(outline = true))
+        assertTrue(!allowed(replace = true))
+        assertTrue(!MarkdownModalFocus.allowUnsavedBack(
+            dirty = false, busy = false, keyboardVisible = false,
+            findOpen = false, outlineOpen = false,
+            replaceConfirmationOpen = false, discardConfirmationOpen = false,
+        ))
+    }
+
+    @Test fun outlineAndReplacementFocusWaitForSheetDismissal() {
+        assertTrue(!MarkdownModalFocus.restoreEditorFocus(
+            focusPending = true, preview = false, findOpen = true,
+        ))
+        assertTrue(MarkdownModalFocus.restoreEditorFocus(
+            focusPending = true, preview = false, findOpen = false,
+        ))
+        assertTrue(!MarkdownModalFocus.restoreEditorFocus(
+            focusPending = false, preview = false, findOpen = false,
+        ))
+        assertTrue(!MarkdownModalFocus.restoreEditorFocus(
+            focusPending = true, preview = true, findOpen = false,
+        ))
+    }
+
 }
