@@ -1,0 +1,216 @@
+package com.goreecloud.markdown
+
+import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.io.FileInputStream
+import java.io.InputStream
+import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.charset.CodingErrorAction
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
+
+/**
+ * Uses only an explicitly user-selected document URI.
+ * External document providers may not offer atomic replace semantics.
+ */
+internal data class DocumentSaveResult(val recoveryCleanupPending: Boolean)
+
+internal class DocumentStorage(
+    private val context: Context,
+    private val deleteRecoveryDraft: (File) -> Boolean = { it.delete() },
+) {
+    fun read(uri: Uri): String {
+        val source = context.contentResolver.openInputStream(uri)
+            ?: throw IOException("Cannot open the selected document.")
+        source.use { input ->
+            return StrictMarkdownUtf8.decode(BoundedDocumentBytes.read(input))
+        }
+    }
+
+    fun displayName(uri: Uri): String {
+        return try {
+            context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                ?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val col = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                        if (col >= 0) cursor.getString(col)?.take(120) else null
+                    } else null
+                } ?: "Untitled.md"
+        } catch (_: Exception) {
+            "Untitled.md"
+        }
+    }
+
+    fun recoveryDraft(uri: Uri): String? {
+        val rescue = recoveryFile(uri)
+        val pending = File(rescue.parentFile, "${rescue.name}.pending")
+        val rescueBytes = privateRecoveryBytes(rescue)
+        val pendingBytes = privateRecoveryBytes(pending)
+        val chosen = RecoveryDraftSlots.choose(rescueBytes, pendingBytes) ?: return null
+        return StrictMarkdownUtf8.decode(chosen)
+    }
+
+    private fun privateRecoveryBytes(file: File): ByteArray? {
+        if (!file.exists()) return null
+        if (!file.isFile) throw IOException("Private recovery entry is not a regular file.")
+        if (file.length() > MAX_DOCUMENT_BYTES) throw IOException("Recovery draft exceeds the safety limit.")
+        // Enforce actual read bytes even if provider or filesystem metadata is stale.
+        return FileInputStream(file).use { BoundedDocumentBytes.read(it) }
+    }
+
+    /**
+     * Writes a private, fsynced draft first. Only deletes that draft if a provider
+     * write and byte-for-byte readback both succeed. The draft is intentionally
+     * kept on failure for possible recovery on a subsequent Open.
+     */
+    fun save(uri: Uri, text: String, expectedPersistedText: String? = null): DocumentSaveResult {
+        val contents = StrictMarkdownUtf8.encode(text)
+        val rescue = recoveryFile(uri)
+        val directory = rescue.parentFile ?: throw IOException("Recovery directory unavailable.")
+        if (!directory.isDirectory && !directory.mkdirs()) {
+            throw IOException("Cannot prepare private recovery directory; provider not written.")
+        }
+        // Never overwrite a distinct, previously retained rescue copy. It may be
+        // the only surviving record of unsaved edits after an earlier failed write.
+        // An identical copy can be refreshed safely; on uncertainty, fail closed.
+        privateRecoveryBytes(rescue)?.let { RecoveryDraftOverwriteGuard.verify(it, contents) }
+        // A power loss before the atomic rename may leave a fully fsynced pending
+        // draft. Never silently destroy that copy either.
+        val staging = File(directory, "${rescue.name}.pending")
+        val pendingBytes = privateRecoveryBytes(staging)
+        pendingBytes?.let { RecoveryDraftOverwriteGuard.verify(it, contents) }
+        // Reuse an identical pending copy without truncating it first.
+        if (pendingBytes == null) {
+            FileOutputStream(staging).use {
+                it.write(contents)
+                it.fd.sync()
+            }
+        }
+        // A failed move must not delete the pending bytes; they can be recovered
+        // on a subsequent Open. Provider writing begins only after this succeeds.
+        Files.move(
+            staging.toPath(), rescue.toPath(),
+            StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING,
+        )
+
+        // SAF document providers do not support atomic compare-and-replace.
+        // This check blocks observed conflicts, but not racing external changes.
+        if (expectedPersistedText != null) {
+            DocumentConflictGuard.verify(expectedPersistedText, read(uri))
+        }
+        val destination = context.contentResolver.openOutputStream(uri, "wt")
+            ?: throw IOException("Cannot write the selected document.")
+        destination.use {
+            it.write(contents)
+            it.flush()
+        }
+        if (read(uri) != text) {
+            throw IOException("Provider readback mismatched; private recovery draft retained.")
+        }
+        // Provider save already verified. Cleanup failure is a warning, not a save failure.
+        val cleanupPending = try {
+            !deleteRecoveryDraft(rescue)
+        } catch (_: Exception) {
+            true
+        }
+        return DocumentSaveResult(recoveryCleanupPending = cleanupPending)
+    }
+
+    private fun recoveryFile(uri: Uri): File {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(uri.toString().toByteArray(StandardCharsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+        return File(File(context.filesDir, "recovery"), "$digest.draft")
+    }
+}
+
+/** Actual streaming byte bound shared by SAF reads and private recovery. */
+internal object BoundedDocumentBytes {
+    fun read(input: InputStream): ByteArray {
+        val output = ByteArrayOutputStream()
+        val buffer = ByteArray(8192)
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            if (count == 0) {
+                // A nonconforming provider must not spin forever on zero-length reads.
+                val byte = input.read()
+                if (byte < 0) break
+                if (output.size() >= MAX_DOCUMENT_BYTES) {
+                    throw IOException("Document exceeds the 2 MiB development safety limit.")
+                }
+                output.write(byte)
+            } else {
+                if (count > MAX_DOCUMENT_BYTES - output.size()) {
+                    throw IOException("Document exceeds the 2 MiB development safety limit.")
+                }
+                output.write(buffer, 0, count)
+            }
+        }
+        return output.toByteArray()
+    }
+}
+
+internal const val MAX_DOCUMENT_BYTES = 2 * 1024 * 1024
+
+internal object StrictMarkdownUtf8 {
+    fun encode(text: String): ByteArray {
+        require(text.length <= MAX_DOCUMENT_BYTES) { "Document exceeds the 2 MiB development safety limit." }
+        val buffer = StandardCharsets.UTF_8.newEncoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+            .encode(java.nio.CharBuffer.wrap(text))
+        require(buffer.remaining() <= MAX_DOCUMENT_BYTES) { "Document exceeds the 2 MiB development safety limit." }
+        return ByteArray(buffer.remaining()).also { buffer.get(it) }
+    }
+
+    fun decode(bytes: ByteArray): String {
+        require(bytes.size <= MAX_DOCUMENT_BYTES) { "Document exceeds the 2 MiB development safety limit." }
+        return StandardCharsets.UTF_8.newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+            .decode(ByteBuffer.wrap(bytes))
+            .toString()
+    }
+}
+
+/** Pure pre-write comparison to prevent silent overwrites of observed changes. */
+internal object DocumentConflictGuard {
+    fun verify(expectedPersistedText: String, currentProviderText: String) {
+        if (expectedPersistedText != currentProviderText) {
+            throw IOException(
+                "The document changed outside GoreeCloud Markdown. " +
+                    "It was not overwritten; use Save as to preserve both versions."
+            )
+        }
+    }
+}
+
+/** Never silently replace an older, distinct recovery copy for this URI. */
+internal object RecoveryDraftOverwriteGuard {
+    fun verify(existingRecoveryBytes: ByteArray, intendedSaveBytes: ByteArray) {
+        if (!existingRecoveryBytes.contentEquals(intendedSaveBytes)) {
+            throw IOException(
+                "A different private recovery draft already exists. It was not overwritten. " +
+                    "Restore the recovery draft first, or use Save as to preserve both versions."
+            )
+        }
+    }
+}
+
+/** Preserve both copies when an interrupted rename left conflicting recovery bytes. */
+internal object RecoveryDraftSlots {
+    fun choose(rescueBytes: ByteArray?, pendingBytes: ByteArray?): ByteArray? {
+        if (rescueBytes != null && pendingBytes != null) {
+            RecoveryDraftOverwriteGuard.verify(rescueBytes, pendingBytes)
+        }
+        return rescueBytes ?: pendingBytes
+    }
+}
