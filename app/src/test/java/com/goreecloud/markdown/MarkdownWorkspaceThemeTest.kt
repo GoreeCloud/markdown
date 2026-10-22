@@ -158,4 +158,27 @@ class MarkdownWorkspaceThemeTest {
         assertTrue(dismissed.recoveryPending)
     }
 
+    @Test fun recoveryDialogYieldsToDiscardConfirmationWithoutLosingDraft() {
+        assertTrue(RecoveryDialogPresentation.show(
+            available = true, discardConfirmationPending = false,
+        ))
+        assertTrue(!RecoveryDialogPresentation.show(
+            available = true, discardConfirmationPending = true,
+        ))
+        // Canceling the discard confirmation makes the same recovery prompt
+        // visible again: no recovery bytes or editing state were discarded.
+        assertTrue(RecoveryDialogPresentation.show(
+            available = true, discardConfirmationPending = false,
+        ))
+    }
+
+    @Test fun recoveryDialogIsAbsentAfterRecoveryIsResolved() {
+        assertTrue(!RecoveryDialogPresentation.show(
+            available = false, discardConfirmationPending = false,
+        ))
+        assertTrue(!RecoveryDialogPresentation.show(
+            available = false, discardConfirmationPending = true,
+        ))
+    }
+
 }
