@@ -61,6 +61,22 @@ void main() {
         const TextRange(start: 0, end: 1));
   });
 
+  test('find treats regex metacharacters as literal text', () {
+    expect(MarkdownEditing.findMatch('a.b a*b', 'a.b'),
+        const TextRange(start: 0, end: 3));
+    expect(MarkdownEditing.findMatch('a.b a*b', 'a*b'),
+        const TextRange(start: 4, end: 7));
+    expect(MarkdownEditing.findMatch('a.b a*b', '['), isNull);
+  });
+
+  test('find selections refer to original Unicode source offsets', () {
+    const text = '\u0130abc abc';
+    expect(MarkdownEditing.findMatch(text, 'abc'),
+        const TextRange(start: 1, end: 4));
+    expect(MarkdownEditing.findMatch(text, 'ABC', start: 4),
+        const TextRange(start: 5, end: 8));
+  });
+
   test('find offsets match Dart UTF-16 selections for emoji', () {
     expect(MarkdownEditing.findMatch('a😀 b😀', '😀', start: 3),
         const TextRange(start: 5, end: 7));
