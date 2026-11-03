@@ -12,6 +12,7 @@ Built as an original Flutter workspace following [GoreeCloud UI](https://github.
 - Read GitHub-flavored Markdown in a polished, selectable preview (headings, code, lists, tasks, blockquotes, tables and more).
 - Desktop: side-by-side editor and preview. Compact screens: Edit/Preview switch.
 - Create, Open, Save and Save As UTF-8 text. Prompt to save or discard changes before replacing an edited document.
+- Save As filename suggestions preserve supported Markdown/plain-text suffixes (`.md`, `.markdown`, `.mdown`, `.txt`, `.text`) case-insensitively on both Linux and Android. Missing or unknown suffixes receive `.md`; empty or invalid basenames receive `Untitled.md`. The user still chooses the destination and final name in the native dialog, and provider-specific renaming/length limits may apply.
 - Android: native Storage Access Framework picker, system provider URIs, and compatible Open with/Edit intents. Google Drive, Dropbox and file managers can appear when their Android apps expose document-provider support.
 - Linux: native picker for local files and user-mounted/synchronized cloud folders (including Google Drive via a compatible GVfs setup or Dropbox via sync/mount).
 - Hardware keyboard shortcuts: Ctrl+S, Ctrl+Shift+S, Ctrl+O, Ctrl+N, Ctrl+B, Ctrl+I.
