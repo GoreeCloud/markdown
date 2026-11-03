@@ -13,9 +13,10 @@ void main() {
 
   test('Save As retains supported Markdown and text suffixes', () {
     for (final extension in ['md', 'markdown', 'mdown', 'txt', 'text']) {
-      expect(suggestedDocumentName('Draft.' + extension), 'Draft.' + extension);
-      expect(suggestedDocumentName('Draft.' + extension.toUpperCase()),
-          'Draft.' + extension.toUpperCase());
+      final lower = 'Draft.$extension';
+      final upper = 'Draft.${extension.toUpperCase()}';
+      expect(suggestedDocumentName(lower), lower);
+      expect(suggestedDocumentName(upper), upper);
     }
     expect(suggestedDocumentName('notes'), 'notes.md');
     expect(suggestedDocumentName('notes.csv'), 'notes.csv.md');
