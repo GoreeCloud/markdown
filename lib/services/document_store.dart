@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/services.dart';
@@ -53,6 +54,29 @@ void verifyTextSize(String text) {
   }
 }
 
+/// Bounded local read even if a mounted/synced file grows after the first stat.
+/// The size and modification checks fail closed on observable concurrent edits,
+/// not a substitute for filesystem snapshots or provider-level revision tokens.
+Future<Uint8List> readBoundedDocumentBytes(File file) async {
+  final before = await file.stat();
+  if (before.size > maxDocumentBytes) {
+    throw const FormatException('Document exceeds the 4 MiB editing limit.');
+  }
+  final output = BytesBuilder(copy: false);
+  await for (final chunk in file.openRead(0, maxDocumentBytes + 1)) {
+    output.add(chunk);
+    if (output.length > maxDocumentBytes) {
+      throw const FormatException('Document exceeds the 4 MiB editing limit.');
+    }
+  }
+  final bytes = output.takeBytes();
+  final after = await file.stat();
+  if (after.size != bytes.length || after.modified != before.modified) {
+    throw StateError('Document changed while opening. Please open it again.');
+  }
+  return bytes;
+}
+
 class LinuxDocumentStore implements DocumentStore {
   static const type = XTypeGroup(
     label: 'Markdown or plain text',
@@ -64,10 +88,7 @@ class LinuxDocumentStore implements DocumentStore {
     final picked = await openFile(acceptedTypeGroups: [type]);
     if (picked == null) return null;
     final file = File(picked.path);
-    if (await file.length() > maxDocumentBytes) {
-      throw const FormatException('Document exceeds the 4 MiB editing limit.');
-    }
-    final bytes = await file.readAsBytes();
+    final bytes = await readBoundedDocumentBytes(file);
     return OpenDocument(
       name: picked.name,
       text: utf8.decode(bytes, allowMalformed: false),
