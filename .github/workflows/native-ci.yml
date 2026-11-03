@@ -26,12 +26,28 @@ jobs:
           cache: true
       - name: Generate platform scaffolding
         run: bash tool/bootstrap.sh
+      - name: Capture dependency evidence
+        run: |
+          mkdir -p build/evidence
+          cp pubspec.lock build/evidence/pubspec.lock
+          flutter pub deps --json > build/evidence/flutter-pub-deps.json
+          flutter --version > build/evidence/flutter-version.txt
       - name: Static analysis
         run: flutter analyze
       - name: Unit and widget tests
         run: flutter test
       - name: Linux debug build
         run: flutter build linux --debug
+      - name: Hash Linux debug bundle
+        run: |
+          (cd build/linux/x64/debug/bundle && find . -type f -print0 | sort -z | xargs -0 sha256sum) > build/evidence/linux-bundle.sha256
+      - name: Upload Linux build evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: goreecloud-markdown-linux-build-evidence
+          path: build/evidence/
+          if-no-files-found: error
+          retention-days: 14
       - name: Upload Linux development bundle
         uses: actions/upload-artifact@v4
         with:
@@ -56,8 +72,23 @@ jobs:
           cache: true
       - name: Generate platform scaffolding
         run: bash tool/bootstrap.sh
+      - name: Capture dependency evidence
+        run: |
+          mkdir -p build/evidence
+          cp pubspec.lock build/evidence/pubspec.lock
+          flutter pub deps --json > build/evidence/flutter-pub-deps.json
+          flutter --version > build/evidence/flutter-version.txt
       - name: Android debug APK
         run: flutter build apk --debug
+      - name: Hash Android debug APK
+        run: sha256sum build/app/outputs/flutter-apk/app-debug.apk > build/evidence/android-apk.sha256
+      - name: Upload Android build evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: goreecloud-markdown-android-build-evidence
+          path: build/evidence/
+          if-no-files-found: error
+          retention-days: 14
       - name: Upload Android development APK
         uses: actions/upload-artifact@v4
         with:
