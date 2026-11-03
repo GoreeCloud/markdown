@@ -45,7 +45,7 @@ Linux needs clang, cmake, ninja, pkg-config, libgtk-3-dev and liblzma-dev. Andro
 
 **Linux:** Tap Open and select a local or user-mounted path; Save writes there. File-manager Open With desktop registration and initial file-path argument handling are future work.
 
-Documents are capped at 4 MiB and must be valid UTF-8. Safe preview does not fetch external images or navigate external links. Inline HTML/JavaScript is not executed. Android requests no general filesystem or internet permission. Saves are manual: no crash recovery, autosave, external-edit conflict detection or all-exit close guard yet. Save before exiting.
+Documents are capped at 4 MiB and must be valid UTF-8. Safe preview does not fetch external images or navigate external links. Inline HTML/JavaScript is not executed. The first-party Android release manifest does not request broad storage or network access; Flutter-generated **debug** manifests may request internet permission for development tooling. The editor does not upload documents. Saves are manual: no crash recovery, autosave, external-edit conflict detection or all-exit close guard yet. Save before exiting.
 
 ## Source map
 
