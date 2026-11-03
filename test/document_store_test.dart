@@ -11,6 +11,33 @@ void main() {
     expect(() => verifyTextSize(tooLarge), throwsFormatException);
   });
 
+  test('Save As retains supported Markdown and text suffixes', () {
+    for (final extension in ['md', 'markdown', 'mdown', 'txt', 'text']) {
+      final lower = 'Draft.$extension';
+      final upper = 'Draft.${extension.toUpperCase()}';
+      expect(suggestedDocumentName(lower), lower);
+      expect(suggestedDocumentName(upper), upper);
+    }
+    expect(suggestedDocumentName('notes'), 'notes.md');
+    expect(suggestedDocumentName('notes.csv'), 'notes.csv.md');
+    expect(suggestedDocumentName('Résumé.MD'), 'Résumé.MD');
+  });
+
+  test('Save As strips path components and handles empty names safely', () {
+    expect(suggestedDocumentName('folder/notes.txt'), 'notes.txt');
+    expect(suggestedDocumentName(r'folder\notes.markdown'), 'notes.markdown');
+    expect(suggestedDocumentName('  '), 'Untitled.md');
+    expect(suggestedDocumentName('.'), 'Untitled.md');
+    expect(suggestedDocumentName('..'), 'Untitled.md');
+    expect(suggestedDocumentName('folder/'), 'Untitled.md');
+  });
+
+  test('Save As rejects invisible filename control characters', () {
+    for (final name in ['bad\u0000.md', 'bad\nname.md', 'bad\tname.md']) {
+      expect(() => suggestedDocumentName(name), throwsFormatException);
+    }
+  });
+
   test('document immutable update preserves its provider identity', () {
     const original = OpenDocument(
       name: 'notes.md',
