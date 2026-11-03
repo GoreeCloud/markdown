@@ -1,0 +1,39 @@
+name: Markdown source and security checks
+on:
+  push:
+    paths:
+      - 'src/**'
+      - 'web/**'
+      - 'tests/**'
+      - '.github/workflows/markdown.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'web/**'
+      - 'tests/**'
+      - '.github/workflows/markdown.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Show Node version
+        run: node --version
+      - name: Syntax-check ESM source
+        run: |
+          node --check src/markdown.mjs
+          node --check web/app.mjs
+      - name: Run regression tests
+        run: node --test tests/*.test.mjs
+      - name: Check for unsafe dynamic HTML insertion
+        run: |
+          if grep -En 'innerHTML|outerHTML|insertAdjacentHTML|eval\s*\(|new Function' web/app.mjs src/markdown.mjs; then
+            echo "Unsafe HTML/eval sink found" >&2
+            exit 1
+          fi
