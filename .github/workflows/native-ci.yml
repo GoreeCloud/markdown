@@ -1,10 +1,16 @@
 name: Native Markdown checks
 
 on:
+  # Feature branches are checked by pull_request, avoiding duplicate push runs.
   push:
-    branches: [main, 'feat/**']
+    branches: [main]
   pull_request:
   workflow_dispatch:
+
+# Superseded PR commits should not consume further build minutes.
+concurrency:
+  group: goreecloud-markdown-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
