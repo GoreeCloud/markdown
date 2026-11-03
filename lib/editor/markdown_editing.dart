@@ -68,7 +68,9 @@ class MarkdownEditing {
         : (start > haystack.length ? haystack.length : start);
     final index = backwards
         ? (() {
-            final previous = haystack.lastIndexOf(needle, cursor - 1);
+            final previous = cursor == 0
+                ? -1
+                : haystack.lastIndexOf(needle, cursor - 1);
             return previous >= 0 ? previous : haystack.lastIndexOf(needle);
           })()
         : (() {
