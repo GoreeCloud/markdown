@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -18,8 +19,8 @@ void main() {
     final folder = await Directory.systemTemp.createTemp('gc-md-bounded-open-');
     try {
       final file = File('${folder.path}/note.md');
-      final source = '# GoreeCloud 📋\\nLine two';
-      final bytes = Uint8List.fromList(source.codeUnits);
+      final source = '# GoreeCloud 📋\nLine two';
+      final bytes = Uint8List.fromList(utf8.encode(source));
       await file.writeAsBytes(bytes, flush: true);
       expect(await readBoundedDocumentBytes(file), bytes);
       await file.writeAsBytes([], flush: true);
