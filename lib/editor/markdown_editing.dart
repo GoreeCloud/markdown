@@ -49,6 +49,44 @@ class MarkdownEditing {
     );
   }
 
+  /// Locate a plain-text match without modifying the editor buffer.
+  ///
+  /// [start] is a UTF-16 selection offset. Matches wrap at the document end
+  /// (or beginning for reverse navigation). An empty query is not a match.
+  static TextRange? findMatch(
+    String text,
+    String query, {
+    int start = 0,
+    bool backwards = false,
+  }) {
+    if (text.isEmpty || query.isEmpty) return null;
+    final cursor = start < 0
+        ? 0
+        : (start > text.length ? text.length : start);
+    // Escape the literal query rather than interpreting user text as a regex.
+    // Match offsets refer to the original UTF-16 source, even if Unicode
+    // lowercase transformations would otherwise change its length.
+    final pattern = RegExp(
+      RegExp.escape(query),
+      caseSensitive: false,
+      unicode: true,
+    );
+    RegExpMatch? first;
+    RegExpMatch? previous;
+    RegExpMatch? next;
+    RegExpMatch? last;
+    for (final match in pattern.allMatches(text)) {
+      first ??= match;
+      last = match;
+      if (match.start < cursor) previous = match;
+      if (match.start >= cursor) next ??= match;
+      if (!backwards && next != null) break;
+    }
+    final found = backwards ? (previous ?? last) : (next ?? first);
+    if (found == null) return null;
+    return TextRange(start: found.start, end: found.end);
+  }
+
   static int wordCount(String text) {
     final trimmed = text.trim();
     return trimmed.isEmpty ? 0 : trimmed.split(RegExp(r'\s+')).length;
