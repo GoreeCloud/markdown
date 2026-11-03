@@ -45,12 +45,15 @@ class WorkspaceScreen extends StatefulWidget {
 class _WorkspaceScreenState extends State<WorkspaceScreen> {
   final _controller = TextEditingController(text: welcomeMarkdown);
   final _editorFocus = FocusNode();
+  final _findController = TextEditingController();
+  final _findFocus = FocusNode();
   late final DocumentStore _store = DocumentStore.current();
   OpenDocument? _document;
   String _saved = welcomeMarkdown;
   String _preview = welcomeMarkdown;
   bool _demo = true;
   bool _previewMode = false;
+  bool _findVisible = false;
   bool _saving = false;
   Timer? _debounce;
 
@@ -85,12 +88,14 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
 
   void _replace(OpenDocument? doc, String text) {
     _debounce?.cancel();
+    _findController.clear();
     setState(() {
       _document = doc;
       _saved = text;
       _preview = text;
       _demo = false;
       _previewMode = false;
+      _findVisible = false;
       _controller.value = TextEditingValue(
         text: text, selection: TextSelection.collapsed(offset: text.length),
       );
@@ -171,6 +176,49 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     }
   }
 
+  void _openFind() {
+    setState(() {
+      _findVisible = true;
+      _previewMode = false;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _findFocus.requestFocus();
+    });
+  }
+
+  void _closeFind() {
+    if (!_findVisible) return;
+    setState(() => _findVisible = false);
+    _editorFocus.requestFocus();
+  }
+
+  void _jumpToMatch({bool backwards = false}) {
+    final query = _findController.text;
+    if (query.isEmpty) {
+      _findFocus.requestFocus();
+      return;
+    }
+    final selection = _controller.selection;
+    final cursor = selection.isValid
+        ? (backwards ? selection.start : selection.end)
+        : 0;
+    final result = MarkdownEditing.findMatch(
+      _controller.text,
+      query,
+      start: cursor,
+      backwards: backwards,
+    );
+    if (result == null) {
+      _notice('No matching text found.');
+      return;
+    }
+    _controller.selection = TextSelection(
+      baseOffset: result.start,
+      extentOffset: result.end,
+    );
+    _editorFocus.requestFocus();
+  }
+
   void _format(TextEditingValue Function(TextEditingValue) fn) {
     _controller.value = fn(_controller.value);
     _editorFocus.requestFocus();
@@ -189,6 +237,8 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     _controller.removeListener(_onChange);
     _controller.dispose();
     _editorFocus.dispose();
+    _findController.dispose();
+    _findFocus.dispose();
     super.dispose();
   }
 
@@ -202,6 +252,10 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
             () => _save(saveAs: true),
         const SingleActivator(LogicalKeyboardKey.keyO, control: true): _open,
         const SingleActivator(LogicalKeyboardKey.keyN, control: true): _new,
+        const SingleActivator(LogicalKeyboardKey.keyF, control: true): _openFind,
+        const SingleActivator(LogicalKeyboardKey.keyF, meta: true): _openFind,
+        if (_findVisible)
+          const SingleActivator(LogicalKeyboardKey.escape): _closeFind,
         const SingleActivator(LogicalKeyboardKey.keyB, control: true):
             () => _format((v) => MarkdownEditing.wrap(v, '**', '**')),
         const SingleActivator(LogicalKeyboardKey.keyI, control: true):
@@ -228,6 +282,10 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                       const SizedBox(height: 14),
                       _toolbar(c, split),
                       const SizedBox(height: 14),
+                      if (_findVisible) ...[
+                        _findBar(c),
+                        const SizedBox(height: 12),
+                      ],
                       Expanded(
                         child: split
                             ? Row(children: [
@@ -340,6 +398,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
         ),
         child: Row(children: [
           Expanded(child: ListView(scrollDirection: Axis.horizontal, children: [
+            _tool(Icons.search_rounded, 'Find (Ctrl+F)', _openFind),
             _tool(Icons.format_bold_rounded, 'Bold',
               () => _format((v) => MarkdownEditing.wrap(v, '**', '**'))),
             _tool(Icons.format_italic_rounded, 'Italic',
@@ -373,6 +432,49 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
               });
             }),
           ],
+        ]),
+      );
+
+  Widget _findBar(GcColors c) => Container(
+        key: const Key('markdown-find-bar'),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: c.surface,
+          border: Border.all(color: c.outline),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Icon(Icons.search_rounded, size: 20, color: c.brand),
+          ),
+          Expanded(child: TextField(
+            key: const Key('markdown-find-input'),
+            controller: _findController,
+            focusNode: _findFocus,
+            textInputAction: TextInputAction.search,
+            onSubmitted: (_) => _jumpToMatch(),
+            decoration: const InputDecoration(
+              hintText: 'Find in document',
+              border: InputBorder.none,
+              isDense: true,
+            ),
+          )),
+          IconButton(
+            tooltip: 'Previous match',
+            onPressed: () => _jumpToMatch(backwards: true),
+            icon: const Icon(Icons.keyboard_arrow_up_rounded),
+          ),
+          IconButton(
+            tooltip: 'Next match',
+            onPressed: _jumpToMatch,
+            icon: const Icon(Icons.keyboard_arrow_down_rounded),
+          ),
+          IconButton(
+            tooltip: 'Close find',
+            onPressed: _closeFind,
+            icon: const Icon(Icons.close_rounded),
+          ),
         ]),
       );
 
