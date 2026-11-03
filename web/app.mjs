@@ -164,8 +164,7 @@ function download() {
     document.body.append(anchor);
     anchor.click();
     anchor.remove();
-    markDirty(false);
-    setStatus("Download requested. Confirm the file was saved before closing.");
+    setStatus("Download requested. Confirm the file was saved before closing; unsaved-change protection remains active.");
   } finally {
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
