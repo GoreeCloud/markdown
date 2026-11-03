@@ -36,4 +36,33 @@ void main() {
     expect(MarkdownEditing.wordCount('Hello  world\nagain'), 3);
     expect(MarkdownEditing.readingMinutes(''), 1);
   });
+
+  test('find navigation wraps forward and backward, ignoring case', () {
+    const text = 'One two one';
+    expect(MarkdownEditing.findMatch(text, 'ONE'),
+        const TextRange(start: 0, end: 3));
+    expect(MarkdownEditing.findMatch(text, 'ONE', start: 3),
+        const TextRange(start: 8, end: 11));
+    expect(MarkdownEditing.findMatch(text, 'one', start: 11),
+        const TextRange(start: 0, end: 3));
+    expect(MarkdownEditing.findMatch(text, 'one', start: 8, backwards: true),
+        const TextRange(start: 0, end: 3));
+    expect(MarkdownEditing.findMatch(text, 'one', backwards: true),
+        const TextRange(start: 8, end: 11));
+  });
+
+  test('find handles no result and invalid cursor positions', () {
+    expect(MarkdownEditing.findMatch('abc', ''), isNull);
+    expect(MarkdownEditing.findMatch('', 'a'), isNull);
+    expect(MarkdownEditing.findMatch('abc', 'not here'), isNull);
+    expect(MarkdownEditing.findMatch('abc', 'a', start: -15),
+        const TextRange(start: 0, end: 1));
+    expect(MarkdownEditing.findMatch('abc', 'a', start: 500),
+        const TextRange(start: 0, end: 1));
+  });
+
+  test('find offsets match Dart UTF-16 selections for emoji', () {
+    expect(MarkdownEditing.findMatch('a😀 b😀', '😀', start: 3),
+        const TextRange(start: 5, end: 7));
+  });
 }
