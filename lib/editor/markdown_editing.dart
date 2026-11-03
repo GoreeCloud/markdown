@@ -60,25 +60,31 @@ class MarkdownEditing {
     bool backwards = false,
   }) {
     if (text.isEmpty || query.isEmpty) return null;
-    final haystack = text.toLowerCase();
-    final needle = query.toLowerCase();
-    if (needle.isEmpty || needle.length > haystack.length) return null;
     final cursor = start < 0
         ? 0
-        : (start > haystack.length ? haystack.length : start);
-    final index = backwards
-        ? (() {
-            final previous = cursor == 0
-                ? -1
-                : haystack.lastIndexOf(needle, cursor - 1);
-            return previous >= 0 ? previous : haystack.lastIndexOf(needle);
-          })()
-        : (() {
-            final next = haystack.indexOf(needle, cursor);
-            return next >= 0 ? next : haystack.indexOf(needle);
-          })();
-    if (index < 0) return null;
-    return TextRange(start: index, end: index + needle.length);
+        : (start > text.length ? text.length : start);
+    // Escape the literal query rather than interpreting user text as a regex.
+    // Match offsets refer to the original UTF-16 source, even if Unicode
+    // lowercase transformations would otherwise change its length.
+    final pattern = RegExp(
+      RegExp.escape(query),
+      caseSensitive: false,
+      unicode: true,
+    );
+    RegExpMatch? first;
+    RegExpMatch? previous;
+    RegExpMatch? next;
+    RegExpMatch? last;
+    for (final match in pattern.allMatches(text)) {
+      first ??= match;
+      last = match;
+      if (match.start < cursor) previous = match;
+      if (match.start >= cursor) next ??= match;
+      if (!backwards && next != null) break;
+    }
+    final found = backwards ? (previous ?? last) : (next ?? first);
+    if (found == null) return null;
+    return TextRange(start: found.start, end: found.end);
   }
 
   static int wordCount(String text) {
