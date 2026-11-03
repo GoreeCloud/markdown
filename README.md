@@ -9,12 +9,13 @@ Built as an original Flutter workspace following [GoreeCloud UI](https://github.
 ## Capabilities
 
 - Write and edit Markdown with native text selection and selection-aware Bold, Italic, Heading, List, Task, Quote, Code and Link tools.
+- Find text within the open document with Ctrl/⌘+F, case-insensitive next/previous matches, and a compact local search bar. Search does not change the document or write data to a cloud service.
 - Read GitHub-flavored Markdown in a polished, selectable preview (headings, code, lists, tasks, blockquotes, tables and more).
 - Desktop: side-by-side editor and preview. Compact screens: Edit/Preview switch.
 - Create, Open, Save and Save As UTF-8 text. Prompt to save or discard changes before replacing an edited document.
 - Android: native Storage Access Framework picker, system provider URIs, and compatible Open with/Edit intents. Google Drive, Dropbox and file managers can appear when their Android apps expose document-provider support.
 - Linux: native picker for local files and user-mounted/synchronized cloud folders (including Google Drive via a compatible GVfs setup or Dropbox via sync/mount).
-- Hardware keyboard shortcuts: Ctrl+S, Ctrl+Shift+S, Ctrl+O, Ctrl+N, Ctrl+B, Ctrl+I.
+- Hardware keyboard shortcuts: Ctrl+S, Ctrl+Shift+S, Ctrl+O, Ctrl+N, Ctrl+F, Ctrl+B, Ctrl+I (⌘+F for Find on supported keyboards).
 - Offline-capable editing, no login, tracking or GoreeCloud cloud service required.
 
 **Important cloud limitation:** This app currently integrates with operating-system document providers, not Google Drive or Dropbox OAuth APIs. Provider availability and write permissions vary. Linux cloud files must already be mounted or synced. No automatic cloud synchronization is implemented.
