@@ -10,6 +10,23 @@ Run these source/build checks from an SDK-equipped machine after bootstrap:
 
 GitHub Actions attempts automated Linux and Android builds; a successful compile does **not** prove physical device functionality or provider compatibility.
 
+## Verified CI checkpoint — 2026-11-03
+
+Native bounded Linux reader [PR #4](https://github.com/GoreeCloud/markdown/pull/4)
+merged to `main` at `93956a8bacd7f1f5d15eb8c14df4adc08007c7ac`.
+The exact-head [post-merge CI run 41730292334](https://github.com/GoreeCloud/markdown/actions/runs/41730292334)
+completed successfully for Linux analysis, unit/widget tests, desktop debug build,
+and Android debug APK build. The corrected Unicode fixture uses UTF-8 bytes.
+This validates configured automated checks, not mounted-filesystem concurrency,
+device-provider behavior, graphics compatibility, or a signed release.
+
+Release-relevant work still open: [Linux conflict-safe and failure-safe saving #6](https://github.com/GoreeCloud/markdown/issues/6),
+[Linux file-manager Open With integration #7](https://github.com/GoreeCloud/markdown/issues/7),
+[Android SAF write-capability checks #8](https://github.com/GoreeCloud/markdown/issues/8),
+and unresolved [Save As suffix PR #5](https://github.com/GoreeCloud/markdown/pull/5).
+PR #5 is draft and conflicted with the bounded-reader merge; do not treat its
+previous green CI as proof of a combined implementation.
+
 ## Manual test matrix — pending
 
 | Platform | Scenario | Expected behavior |
