@@ -14,4 +14,9 @@ flutter create \
   --project-name goreecloud_markdown \
   --no-pub \
   .
+# Flutter creates a generic MyApp smoke test that is invalid for this app.
+# Remove it only when it still contains the untouched template reference.
+if [ -f test/widget_test.dart ] && grep -q 'const MyApp()' test/widget_test.dart; then
+  rm test/widget_test.dart
+fi
 flutter pub get

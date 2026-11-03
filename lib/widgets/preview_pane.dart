@@ -78,7 +78,7 @@ class PreviewPane extends StatelessWidget {
                       if (href != null) onExternalLink?.call(href);
                     },
                     imageBuilder: (uri, title, alt) => Semantics(
-                      label: 'Image not loaded: ' + (alt ?? uri.toString()),
+                      label: 'Image not loaded: ${alt ?? uri.toString()}',
                       child: Container(
                         margin: const EdgeInsets.symmetric(vertical: 8),
                         padding: const EdgeInsets.all(16),

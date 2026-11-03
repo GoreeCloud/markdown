@@ -70,7 +70,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       final doc = await _store.initialDocument();
       if (doc != null && mounted) await _receive(doc);
     } catch (e) {
-      _notice('Could not open shared file: ' + e.toString());
+      _notice('Could not open shared file: $e');
     }
   }
 
@@ -121,7 +121,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
   Future<void> _receive(OpenDocument doc) async {
     if (!mounted || !await _guard() || !mounted) return;
     _replace(doc, doc.text);
-    _notice('Opened ' + doc.name);
+    _notice('Opened ${doc.name}');
   }
 
   Future<void> _new() async {
@@ -136,10 +136,10 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       final doc = await _store.open();
       if (doc != null && mounted) {
         _replace(doc, doc.text);
-        _notice('Opened ' + doc.name);
+        _notice('Opened ${doc.name}');
       }
     } catch (e) {
-      _notice('Open failed: ' + e.toString());
+      _notice('Open failed: $e');
     }
   }
 
@@ -161,10 +161,10 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
         if (!mounted) return false;
         setState(() => _saved = text);
       }
-      _notice('Saved ' + _name);
+      _notice('Saved $_name');
       return true;
     } catch (e) {
-      _notice('Save failed: ' + e.toString());
+      _notice('Save failed: $e');
       return false;
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -399,9 +399,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
           Expanded(child: Text('Local-first · No account needed',
             overflow: TextOverflow.ellipsis,
             style: TextStyle(fontSize: 11, color: c.muted))),
-          Text(MarkdownEditing.wordCount(_controller.text).toString() +
-            ' words  ·  ' + _controller.text.split('\n').length.toString() +
-            ' lines',
+          Text('${MarkdownEditing.wordCount(_controller.text)} words  ·  ${_controller.text.split('\n').length} lines',
             style: TextStyle(color: c.muted, fontSize: 11)),
         ]),
       );
