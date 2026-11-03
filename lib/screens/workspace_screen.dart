@@ -238,7 +238,9 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                                 Expanded(child: _previewPane()),
                               ])
                             : AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 220),
+                                duration: MediaQuery.disableAnimationsOf(context)
+                                    ? Duration.zero
+                                    : const Duration(milliseconds: 220),
                                 child: _previewMode
                                     ? SizedBox.expand(
                                         key: const ValueKey('preview'),
