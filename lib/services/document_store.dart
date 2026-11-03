@@ -6,6 +6,24 @@ import 'package:flutter/services.dart';
 
 const maxDocumentBytes = 4 * 1024 * 1024;
 
+const _editableTextSuffixes = ['.md', '.markdown', '.mdown', '.txt', '.text'];
+
+/// Suggest a safe basename without silently doubling an editable extension.
+/// The provider or Linux Save dialog still chooses the final file location.
+String suggestedDocumentName(String original) {
+  if (RegExp(r'[\x00-\x1f\x7f]').hasMatch(original)) {
+    throw const FormatException('Document name contains invalid controls.');
+  }
+  final basename = original.split(RegExp(r'[/\\]')).last.trim();
+  if (basename.isEmpty || basename == '.' || basename == '..') {
+    return 'Untitled.md';
+  }
+  final folded = basename.toLowerCase();
+  return _editableTextSuffixes.any(folded.endsWith)
+      ? basename
+      : '$basename.md';
+}
+
 class OpenDocument {
   const OpenDocument({
     required this.name,
@@ -84,7 +102,7 @@ class LinuxDocumentStore implements DocumentStore {
   Future<OpenDocument?> saveAs(String name, String content) async {
     verifyTextSize(content);
     final location = await getSaveLocation(
-      suggestedName: name.endsWith('.md') ? name : '$name.md',
+      suggestedName: suggestedDocumentName(name),
       acceptedTypeGroups: [type],
     );
     if (location == null) return null;
@@ -150,7 +168,7 @@ class AndroidDocumentStore implements DocumentStore {
     verifyTextSize(content);
     final data = await _channel.invokeMethod<dynamic>(
       'saveAs',
-      {'name': name, 'text': content},
+      {'name': suggestedDocumentName(name), 'text': content},
     );
     return data == null ? null : _decode(data);
   }
