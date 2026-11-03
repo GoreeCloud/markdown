@@ -37,7 +37,7 @@ Build and test with:
     flutter build linux --debug
     flutter build apk --debug
 
-Linux needs clang, cmake, ninja, pkg-config, libgtk-3-dev and liblzma-dev. Android builds need an Android SDK and a supported JDK. Generated Flutter Gradle/CMake files are intentionally created at bootstrap and are not hand-maintained. A release signed/distributed APK and Linux installer are not yet provided.
+Linux needs clang, cmake, ninja, pkg-config, libgtk-3-dev and liblzma-dev. Android builds need an Android SDK and a supported JDK. Generated Flutter Gradle/CMake files are intentionally created at bootstrap and are not hand-maintained. GitHub Actions uploads temporary **Android debug APK** and **Linux debug bundle** artifacts from successful CI runs (14-day retention). Open the successful workflow run under the repository Actions tab to download them. These are unsigned/debug development builds, **not** signed releases or Linux installers.
 
 ## File providers and permissions
 
