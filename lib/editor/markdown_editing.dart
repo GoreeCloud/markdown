@@ -2,6 +2,9 @@ import 'dart:math';
 
 import 'package:flutter/services.dart';
 
+/// Maximum UTF-16 query length accepted by native Find.
+const maxFindQueryCodeUnits = 1024;
+
 /// Pure selection-aware Markdown transformations. Never rewrite unrelated text.
 class MarkdownEditing {
   static TextEditingValue wrap(
@@ -59,7 +62,10 @@ class MarkdownEditing {
     int start = 0,
     bool backwards = false,
   }) {
-    if (text.isEmpty || query.isEmpty) return null;
+    if (text.isEmpty || query.isEmpty ||
+        query.length > maxFindQueryCodeUnits) {
+      return null;
+    }
     final cursor = start < 0
         ? 0
         : (start > text.length ? text.length : start);
