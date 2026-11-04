@@ -51,6 +51,14 @@ void main() {
         const TextRange(start: 8, end: 11));
   });
 
+  test('find rejects overlong queries without building a regex', () {
+    final oversized = 'x' * (maxFindQueryCodeUnits + 1);
+    expect(MarkdownEditing.findMatch(oversized, oversized), isNull);
+    final accepted = 'x' * maxFindQueryCodeUnits;
+    expect(MarkdownEditing.findMatch(accepted, accepted),
+        TextRange(start: 0, end: maxFindQueryCodeUnits));
+  });
+
   test('find handles no result and invalid cursor positions', () {
     expect(MarkdownEditing.findMatch('abc', ''), isNull);
     expect(MarkdownEditing.findMatch('', 'a'), isNull);
