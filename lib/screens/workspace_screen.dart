@@ -198,6 +198,10 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       _findFocus.requestFocus();
       return;
     }
+    if (query.length > maxFindQueryCodeUnits) {
+      _notice('Find phrase is too long. Try a shorter search.');
+      return;
+    }
     final selection = _controller.selection;
     final cursor = selection.isValid
         ? (backwards ? selection.start : selection.end)
