@@ -84,4 +84,30 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('markdown-find-bar')), findsNothing);
   });
+
+  testWidgets('oversized find phrase gets a clear local error', (tester) async {
+    tester.view.physicalSize = const Size(420, 880);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(const GoreeCloudMarkdownApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Find (Ctrl+F)'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('markdown-find-input')),
+      'x' * 1025,
+    );
+    await tester.tap(find.byTooltip('Next match'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      find.text('Find phrase is too long. Try a shorter search.'),
+      findsOneWidget,
+    );
+    expect(find.text('Unsaved changes'), findsNothing);
+  });
 }
