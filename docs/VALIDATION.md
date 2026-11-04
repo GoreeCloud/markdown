@@ -27,6 +27,40 @@ and unresolved [Save As suffix PR #5](https://github.com/GoreeCloud/markdown/pul
 PR #5 is draft and conflicted with the bounded-reader merge; do not treat its
 previous green CI as proof of a combined implementation.
 
+### Subsequent verified improvements — November 3, 2026
+
+- [PR #10](https://github.com/GoreeCloud/markdown/pull/10) captures resolved Flutter
+  dependencies, SDK version and per-artifact SHA-256 evidence. Exact-head
+  [CI 41734992100](https://github.com/GoreeCloud/markdown/actions/runs/41734992100)
+  succeeded; this is diagnostic evidence, **not** reproducible-build proof.
+- [PR #12](https://github.com/GoreeCloud/markdown/pull/12) pins GitHub Actions to
+  reviewed commit SHAs. The [post-merge main CI run 41737462214](https://github.com/GoreeCloud/markdown/actions/runs/41737462214)
+  succeeded; Flutter, OS and Gradle inputs are not fully pinned.
+- [PR #14](https://github.com/GoreeCloud/markdown/pull/14) adds local in-memory Find
+  with Ctrl/Meta+F, forward/backward matches, Unicode-aware original-text
+  selection offsets and tests. Exact-head
+  [CI 41742161189](https://github.com/GoreeCloud/markdown/actions/runs/41742161189)
+  succeeded.
+- [PR #15](https://github.com/GoreeCloud/markdown/pull/15) removes duplicate
+  feature-branch push builds, retains main push/PR/manual workflows and cancels
+  superseded PR runs. Exact-head
+  [CI 41742726096](https://github.com/GoreeCloud/markdown/actions/runs/41742726096)
+  succeeded.
+- [PR #16](https://github.com/GoreeCloud/markdown/pull/16) adds widget tests that
+  prevent remote Markdown image widgets and automatic link activation. Exact-head
+  [CI 41743248328](https://github.com/GoreeCloud/markdown/actions/runs/41743248328)
+  succeeded. This is not exhaustive malicious-input or live-network acceptance.
+- [PR #17](https://github.com/GoreeCloud/markdown/pull/17) bounds native Find
+  phrases to 1,024 UTF-16 code units before regex compilation and adds a clear
+  local error with regression tests. Exact-head
+  [CI 41743896550](https://github.com/GoreeCloud/markdown/actions/runs/41743896550)
+  succeeded.
+
+These features and safeguards are merged development work. Their exact-head
+checks do **not** establish Android DocumentsProvider Save/Save As round trips,
+Linux graphical/file-manager acceptance, crash recovery, conflict-safe writes,
+signing, a trusted SBOM/attestation, or Stable/Anchor release readiness.
+
 ## Manual test matrix — pending
 
 | Platform | Scenario | Expected behavior |
@@ -40,6 +74,7 @@ previous green CI as proof of a combined implementation.
 | Linux | Google Drive via GVfs or Dropbox sync/mount | Read and write through mounted path |
 | Both | Invalid UTF-8 / file larger than 4 MiB | Reject with useful error |
 | Both | Dirty doc then New/Open | Save, Discard or Cancel prompt |
+| Both | Find, previous/next, Unicode, oversized phrases | Selection navigates safely; editing buffer and saved baseline stay intact |
 | Both | Remote image/link in Markdown | No image download or link navigation |
 | Both | Keyboard, screen reader, contrast, text scaling | Usable controls and readable preview |
 | Both | Responsive layout and reduced-motion accessibility | Controls remain operable |
